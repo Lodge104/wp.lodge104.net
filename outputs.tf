@@ -4,15 +4,25 @@ output "vpc_id" {
   value       = module.vpc.vpc_id
 }
 
-# ALB Outputs
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = module.alb.alb_dns_name
+# Elastic Beanstalk Outputs
+output "eb_application_name" {
+  description = "Name of the Elastic Beanstalk application"
+  value       = module.elasticbeanstalk.application_name
 }
 
-output "alb_zone_id" {
-  description = "Zone ID of the Application Load Balancer"
-  value       = module.alb.alb_zone_id
+output "eb_environment_name" {
+  description = "Name of the Elastic Beanstalk environment"
+  value       = module.elasticbeanstalk.environment_name
+}
+
+output "eb_endpoint_url" {
+  description = "CNAME of the Elastic Beanstalk environment"
+  value       = module.elasticbeanstalk.endpoint_url
+}
+
+output "eb_load_balancer_url" {
+  description = "Load balancer URL for the Elastic Beanstalk environment"
+  value       = module.elasticbeanstalk.load_balancer_url
 }
 
 # CloudFront Outputs

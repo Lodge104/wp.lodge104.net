@@ -25,11 +25,11 @@ resource "aws_cloudfront_distribution" "wordpress" {
     allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "${var.project_name}-alb-origin"
-    
+
     forwarded_values {
       query_string = var.query_string
       headers      = ["*"]
-      
+
       cookies {
         forward = "all"
       }
@@ -48,11 +48,11 @@ resource "aws_cloudfront_distribution" "wordpress" {
     allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "${var.project_name}-alb-origin"
-    
+
     forwarded_values {
       query_string = var.query_string
       headers      = ["*"]
-      
+
       cookies {
         forward = "all"
       }
@@ -71,11 +71,11 @@ resource "aws_cloudfront_distribution" "wordpress" {
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "${var.project_name}-alb-origin"
-    
+
     forwarded_values {
       query_string = false
       headers      = ["Origin", "Access-Control-Request-Headers", "Access-Control-Request-Method"]
-      
+
       cookies {
         forward = "none"
       }
@@ -83,7 +83,7 @@ resource "aws_cloudfront_distribution" "wordpress" {
 
     viewer_protocol_policy = "redirect-to-https"
     min_ttl                = var.min_ttl
-    default_ttl            = var.max_ttl  # Cache CSS for maximum time
+    default_ttl            = var.max_ttl # Cache CSS for maximum time
     max_ttl                = var.max_ttl
     compress               = var.compress
   }
@@ -94,11 +94,11 @@ resource "aws_cloudfront_distribution" "wordpress" {
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "${var.project_name}-alb-origin"
-    
+
     forwarded_values {
       query_string = false
       headers      = ["Origin", "Access-Control-Request-Headers", "Access-Control-Request-Method"]
-      
+
       cookies {
         forward = "none"
       }
@@ -106,7 +106,7 @@ resource "aws_cloudfront_distribution" "wordpress" {
 
     viewer_protocol_policy = "redirect-to-https"
     min_ttl                = var.min_ttl
-    default_ttl            = var.max_ttl  # Cache JS for maximum time
+    default_ttl            = var.max_ttl # Cache JS for maximum time
     max_ttl                = var.max_ttl
     compress               = var.compress
   }
@@ -117,11 +117,11 @@ resource "aws_cloudfront_distribution" "wordpress" {
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "${var.project_name}-alb-origin"
-    
+
     forwarded_values {
       query_string = false
       headers      = ["Origin", "Access-Control-Request-Headers", "Access-Control-Request-Method"]
-      
+
       cookies {
         forward = "none"
       }
@@ -129,7 +129,7 @@ resource "aws_cloudfront_distribution" "wordpress" {
 
     viewer_protocol_policy = "redirect-to-https"
     min_ttl                = var.min_ttl
-    default_ttl            = var.max_ttl  # Cache uploads for maximum time
+    default_ttl            = var.max_ttl # Cache uploads for maximum time
     max_ttl                = var.max_ttl
     compress               = var.compress
   }
@@ -140,11 +140,11 @@ resource "aws_cloudfront_distribution" "wordpress" {
     cached_methods         = ["GET", "HEAD"]
     target_origin_id       = "${var.project_name}-alb-origin"
     viewer_protocol_policy = "redirect-to-https"
-    
+
     forwarded_values {
       query_string = var.query_string
       headers      = ["Host", "CloudFront-Forwarded-Proto"]
-      
+
       cookies {
         forward           = var.cookies_forward
         whitelisted_names = var.cookies_forward == "whitelist" ? ["comment_*", "wordpress_*", "wp-*"] : []

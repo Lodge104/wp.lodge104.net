@@ -1,7 +1,7 @@
 # ACM Certificate for WordPress Multi-site
 resource "aws_acm_certificate" "wordpress" {
-  count             = var.domain_name != "" ? 1 : 0
-  domain_name       = var.domain_name
+  count       = var.domain_name != "" ? 1 : 0
+  domain_name = var.domain_name
   subject_alternative_names = [
     "www.${var.domain_name}",
     "*.${var.domain_name}"

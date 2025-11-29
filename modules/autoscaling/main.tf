@@ -9,16 +9,16 @@ resource "aws_launch_template" "wordpress" {
   vpc_security_group_ids = var.security_group_ids
 
   user_data = base64encode(templatefile("${path.module}/../../scripts/wordpress-userdata.sh", {
-    efs_file_system_id    = var.efs_file_system_id
-    db_endpoint           = var.db_endpoint
-    db_name               = var.db_name
-    db_username           = var.db_username
-    db_password           = var.db_password
-    redis_endpoint        = var.redis_endpoint
-    redis_port            = var.redis_port
-    redis_auth_token      = var.redis_auth_token
-    primary_domain        = var.primary_domain
-    enable_https_backend  = var.enable_https_backend
+    efs_file_system_id   = var.efs_file_system_id
+    db_endpoint          = var.db_endpoint
+    db_name              = var.db_name
+    db_username          = var.db_username
+    db_password          = var.db_password
+    redis_endpoint       = var.redis_endpoint
+    redis_port           = var.redis_port
+    redis_auth_token     = var.redis_auth_token
+    primary_domain       = var.primary_domain
+    enable_https_backend = var.enable_https_backend
   }))
 
   tag_specifications {
@@ -36,10 +36,10 @@ resource "aws_launch_template" "wordpress" {
 
 # Auto Scaling Group
 resource "aws_autoscaling_group" "wordpress" {
-  name                = "${var.project_name}-asg"
-  vpc_zone_identifier = var.subnet_ids
-  target_group_arns   = [var.target_group_arn]
-  health_check_type   = "ELB"
+  name                      = "${var.project_name}-asg"
+  vpc_zone_identifier       = var.subnet_ids
+  target_group_arns         = [var.target_group_arn]
+  health_check_type         = "ELB"
   health_check_grace_period = 300
 
   min_size         = var.min_size

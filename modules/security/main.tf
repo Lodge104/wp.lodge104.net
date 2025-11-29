@@ -29,7 +29,7 @@ resource "aws_security_group" "alb" {
   }
 
   tags = {
-    Name = "${var.project_name}-alb-sg"
+    Name        = "${var.project_name}-alb-sg"
     Environment = var.environment
   }
 }
@@ -73,7 +73,7 @@ resource "aws_security_group" "web_server" {
   }
 
   tags = {
-    Name = "${var.project_name}-web-sg"
+    Name        = "${var.project_name}-web-sg"
     Environment = var.environment
   }
 }
@@ -101,7 +101,7 @@ resource "aws_security_group" "database" {
   }
 
   tags = {
-    Name = "${var.project_name}-db-sg"
+    Name        = "${var.project_name}-db-sg"
     Environment = var.environment
   }
 }
@@ -129,7 +129,7 @@ resource "aws_security_group" "efs" {
   }
 
   tags = {
-    Name = "${var.project_name}-efs-sg"
+    Name        = "${var.project_name}-efs-sg"
     Environment = var.environment
   }
 }
@@ -157,7 +157,7 @@ resource "aws_security_group" "redis" {
   }
 
   tags = {
-    Name = "${var.project_name}-redis-sg"
+    Name        = "${var.project_name}-redis-sg"
     Environment = var.environment
   }
 }

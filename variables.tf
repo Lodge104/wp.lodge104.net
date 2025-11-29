@@ -279,3 +279,16 @@ variable "seconds_until_auto_pause" {
   default     = 300
 }
 
+# Elastic Beanstalk Configuration
+variable "eb_solution_stack_name" {
+  description = "Elastic Beanstalk solution stack name for PHP"
+  type        = string
+  default     = "64bit Amazon Linux 2023 v4.3.2 running PHP 8.3"
+}
+
+variable "key_name" {
+  description = "Key pair name for SSH access to EC2 instances"
+  type        = string
+  default     = ""
+}
+

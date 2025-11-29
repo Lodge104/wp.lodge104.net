@@ -2,7 +2,7 @@ resource "aws_efs_file_system" "wordpress_efs" {
   creation_token   = "${var.project_name}-efs-${var.environment}"
   performance_mode = var.performance_mode
   throughput_mode  = var.throughput_mode
-  
+
   provisioned_throughput_in_mibps = var.throughput_mode == "provisioned" ? var.provisioned_throughput_in_mibps : null
 
   lifecycle_policy {

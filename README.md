@@ -1,17 +1,16 @@
-# WordPress Infrastructure on AWS with Aurora Serverless
+# WordPress Infrastructure on AWS with Elastic Beanstalk and Aurora Serverless
 
-This project sets up a highly scalable and cost-effective WordPress website infrastructure on AWS using Terraform. The architecture includes EC2 Auto Scaling, Aurora Serverless (MySQL), Elastic File System (EFS), Application Load Balancer (ALB), CloudFront CDN, and Route 53 DNS.
+This project sets up a highly scalable and cost-effective WordPress website infrastructure on AWS using Terraform. The architecture includes AWS Elastic Beanstalk (PHP 8.3/8.4), Aurora Serverless (MySQL), Elastic File System (EFS), CloudFront CDN, and Route 53 DNS.
 
 ## 🏗️ Architecture Overview
 
 The infrastructure consists of:
 
 - **VPC**: Multi-AZ setup with public, private, and database subnets
-- **EC2 Auto Scaling**: Auto-scaling WordPress application servers in private subnets
+- **Elastic Beanstalk**: Managed PHP 8.3/8.4 platform with auto-scaling for WordPress
 - **Aurora Serverless**: Serverless MySQL database with automatic scaling
-- **ElastiCache Redis**: In-memory caching for improved performance
+- **ElastiCache Redis**: In-memory caching for improved performance (optional)
 - **EFS**: Shared file system for WordPress files across instances
-- **ALB**: Application Load Balancer with health checks
 - **CloudFront**: Global CDN for improved performance
 - **Route 53**: DNS management with domain routing
 - **Security Groups**: Layered security with least-privilege access
@@ -28,16 +27,15 @@ The infrastructure consists of:
 │   ├── security/              # Security groups
 │   ├── efs/                   # Elastic File System
 │   ├── rds/                   # Aurora Serverless cluster
-│   ├── elasticache/           # Redis cluster for caching
-│   ├── autoscaling/           # Auto Scaling group & launch template
-│   ├── alb/                   # Application Load Balancer
+│   ├── elasticbeanstalk/      # Elastic Beanstalk application & environment
+│   ├── elasticache/           # Redis cluster for caching (optional)
 │   ├── cloudfront/            # CloudFront distribution
 │   └── route53/               # DNS records
 ├── environments/
 │   ├── dev/                   # Development environment configs
 │   └── prod/                  # Production environment configs
 └── scripts/
-    └── wordpress-userdata.sh  # WordPress installation script
+    └── wordpress-userdata.sh  # Legacy WordPress installation script
 ```
 
 ## 🚀 Quick Start
@@ -169,14 +167,35 @@ For team collaboration, store shared configuration in **AWS Systems Manager Para
 
 ### Optional Variables
 
-| Variable                   | Description           | Default            |
-| -------------------------- | --------------------- | ------------------ |
-| `instance_type`            | EC2 instance type     | `"t3.micro"`       |
-| `min_size`                 | Min ASG size          | `1`                |
-| `max_size`                 | Max ASG size          | `5`                |
-| `ssl_certificate_arn`      | ACM certificate ARN   | `""`               |
-| `redis_node_type`          | Redis instance type   | `"cache.t3.micro"` |
-| `redis_num_cache_clusters` | Number of Redis nodes | `2`                |
+| Variable                   | Description                      | Default                                              |
+| -------------------------- | -------------------------------- | ---------------------------------------------------- |
+| `instance_type`            | EC2 instance type                | `"t3.micro"`                                         |
+| `min_size`                 | Min instances in Elastic Beanstalk | `1`                                                |
+| `max_size`                 | Max instances in Elastic Beanstalk | `5`                                                |
+| `ssl_certificate_arn`      | ACM certificate ARN              | `""`                                                 |
+| `eb_solution_stack_name`   | Elastic Beanstalk PHP stack      | `"64bit Amazon Linux 2023 v4.3.2 running PHP 8.3"`   |
+| `key_name`                 | SSH key pair name                | `""`                                                 |
+| `redis_node_type`          | Redis instance type              | `"cache.t3.micro"`                                   |
+| `redis_num_cache_clusters` | Number of Redis nodes            | `2`                                                  |
+
+## 🎯 Elastic Beanstalk Features
+
+This implementation uses AWS Elastic Beanstalk with PHP 8.3 (PHP 8.4 ready):
+
+- **Managed Platform**: AWS manages OS updates, patches, and platform upgrades
+- **Auto Scaling**: Automatically scales instances based on demand
+- **Load Balancing**: Built-in Application Load Balancer with health checks
+- **Rolling Updates**: Zero-downtime deployments with rolling updates
+- **Enhanced Health Monitoring**: Detailed health reporting and metrics
+- **Easy Configuration**: Environment variables and settings managed through Terraform
+
+### PHP Version
+
+The infrastructure is configured to use PHP 8.3 on Amazon Linux 2023. When AWS releases PHP 8.4 solution stack, update the `eb_solution_stack_name` variable:
+
+```hcl
+eb_solution_stack_name = "64bit Amazon Linux 2023 v4.x.x running PHP 8.4"
+```
 
 ## 🏷️ Aurora Serverless Features
 
@@ -218,7 +237,7 @@ This infrastructure is configured to support WordPress Multi-site with subdomain
 
 ### WordPress Multi-site Settings
 
-The userdata script automatically configures WordPress with:
+The Elastic Beanstalk environment automatically configures WordPress with:
 
 ```php
 define('WP_ALLOW_MULTISITE', true);
@@ -287,53 +306,36 @@ cloudfront_cookies_forward  = "whitelist"         # Cookie forwarding strategy
 - **Network Isolation**: WordPress servers in private subnets
 - **Security Groups**: Restrictive firewall rules
 - **Database Security**: Aurora in isolated database subnets
-- **HTTPS**: Optional SSL/TLS termination at ALB and CloudFront
-- **End-to-End Encryption**: Optional HTTPS from ALB to instances
-- **Access Control**: SSH access from specific IP ranges
+- **HTTPS**: SSL/TLS termination at Elastic Beanstalk ALB and CloudFront
+- **IAM Roles**: Least-privilege access for Elastic Beanstalk instances
+- **Access Control**: SSH access from specific IP ranges (optional)
 
-### 🔐 End-to-End Encryption Options
+### 🔐 SSL/TLS Configuration
 
-This infrastructure supports multiple SSL/TLS configurations:
-
-**Option 1: SSL Termination at ALB (Default)**
+This infrastructure supports SSL/TLS encryption:
 
 - **Client ↔ CloudFront**: HTTPS with ACM certificate
-- **CloudFront ↔ ALB**: HTTPS with ACM certificate
+- **CloudFront ↔ Elastic Beanstalk ALB**: HTTPS with ACM certificate
 - **ALB ↔ Instances**: HTTP (within VPC)
-- **Best for**: Cost-effective setup with good security
-
-**Option 2: End-to-End Encryption (Production Recommended)**
-
-- **Client ↔ CloudFront**: HTTPS with ACM certificate
-- **CloudFront ↔ ALB**: HTTPS with ACM certificate
-- **ALB ↔ Instances**: HTTPS with self-signed certificates
-- **Best for**: Maximum security compliance requirements
-
-Enable end-to-end encryption by setting:
-
-```hcl
-enable_https_backend = true
-```
 
 ### SSL Certificate Management
 
 - **ACM Integration**: Automatic wildcard certificate creation and validation
 - **Auto-Renewal**: Certificates automatically renewed by AWS
-- **Self-Signed Backend**: Generated automatically on instances for backend encryption
+- **Elastic Beanstalk HTTPS**: Managed SSL termination at load balancer
 
 ## 💰 Cost Optimization
 
 - **Aurora Serverless**: Pay only for database usage
-- **Auto Scaling**: Scale instances based on demand
+- **Elastic Beanstalk Auto Scaling**: Scale instances based on demand
 - **CloudFront**: Reduce bandwidth costs
 - **EFS**: Shared storage across instances
-- **Spot Instances**: Optional cost savings (not implemented)
 
 ## 📊 Monitoring & Logging
 
 - **CloudWatch**: Built-in metrics and alarms
-- **ALB Health Checks**: Application-level monitoring
-- **Auto Scaling Policies**: CPU-based scaling triggers
+- **Elastic Beanstalk Health**: Enhanced health monitoring with detailed metrics
+- **Auto Scaling Policies**: Load-based scaling triggers
 - **CloudFront Metrics**: CDN performance monitoring
 
 ## 🛠️ Customization
@@ -352,9 +354,16 @@ Modify these variables in your tfvars:
 ```hcl
 min_size = 2
 max_size = 10
-desired_capacity = 3
 min_capacity = 2  # Aurora Serverless
 max_capacity = 16 # Aurora Serverless
+```
+
+### Elastic Beanstalk Solution Stack
+
+To use a different PHP version, update the solution stack name:
+
+```hcl
+eb_solution_stack_name = "64bit Amazon Linux 2023 v4.3.2 running PHP 8.3"
 ```
 
 ### Multi-Environment Setup
@@ -381,7 +390,7 @@ terraform destroy -var-file="environments/prod/terraform.tfvars"
 
 ## 📋 Post-Deployment
 
-1. **Access WordPress**: Navigate to your ALB DNS name or domain
+1. **Access WordPress**: Navigate to your Elastic Beanstalk endpoint URL or custom domain
 2. **Complete Setup**: Follow WordPress installation wizard
 3. **Update DNS**: Point your domain to CloudFront (if using custom domain)
 4. **Security**: Update WordPress admin password immediately

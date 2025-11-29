@@ -38,22 +38,22 @@ resource "aws_elasticache_parameter_group" "redis" {
 
 # ElastiCache Redis Replication Group
 resource "aws_elasticache_replication_group" "redis" {
-  replication_group_id       = "${var.project_name}-redis"
-  description                = "Redis cluster for ${var.project_name} WordPress"
-  
+  replication_group_id = "${var.project_name}-redis"
+  description          = "Redis cluster for ${var.project_name} WordPress"
+
   # Basic Configuration  
-  node_type               = var.node_type
-  port                    = var.port
-  parameter_group_name    = aws_elasticache_parameter_group.redis.name
-  
+  node_type            = var.node_type
+  port                 = var.port
+  parameter_group_name = aws_elasticache_parameter_group.redis.name
+
   # Cluster Configuration
   num_cache_clusters         = var.num_cache_clusters
   automatic_failover_enabled = var.num_cache_clusters > 1 ? true : false
-  
+
   # Network & Security
   subnet_group_name  = aws_elasticache_subnet_group.redis.name
   security_group_ids = var.security_group_ids
-  
+
   # Engine
   engine_version = var.engine_version
 

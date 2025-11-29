@@ -1,21 +1,21 @@
-# Main Terraform configuration for WordPress infrastructure
+# Main Terraform configuration for WordPress infrastructure on Elastic Beanstalk
 
 module "vpc" {
   source = "./modules/vpc"
-  
+
   project_name          = var.project_name
-  environment          = var.environment
-  vpc_cidr             = var.vpc_cidr
-  availability_zones   = var.availability_zones
-  public_subnet_cidrs  = var.public_subnet_cidrs
-  private_subnet_cidrs = var.private_subnet_cidrs
+  environment           = var.environment
+  vpc_cidr              = var.vpc_cidr
+  availability_zones    = var.availability_zones
+  public_subnet_cidrs   = var.public_subnet_cidrs
+  private_subnet_cidrs  = var.private_subnet_cidrs
   database_subnet_cidrs = var.database_subnet_cidrs
 }
 
 module "security" {
   source = "./modules/security"
-  
-  project_name       = var.project_name
+
+  project_name      = var.project_name
   environment       = var.environment
   vpc_id            = module.vpc.vpc_id
   allowed_ip_ranges = ["0.0.0.0/0"]
@@ -23,8 +23,8 @@ module "security" {
 
 module "efs" {
   source = "./modules/efs"
-  
-  project_name       = var.project_name
+
+  project_name      = var.project_name
   environment       = var.environment
   subnet_ids        = module.vpc.private_subnet_ids
   security_group_id = module.security.efs_security_group_id
@@ -44,82 +44,72 @@ module "efs" {
 # }
 
 module "rds" {
-  source                 = "./modules/rds"
-  cluster_identifier     = "lodge104-${var.environment}-aurora"
-  username               = var.db_username
-  password               = var.db_password
-  security_group_id      = module.security.database_security_group_id
-  db_subnet_ids          = module.vpc.database_subnet_ids
-  backup_retention_period = var.backup_retention_period
-  backup_window          = var.backup_window
-  maintenance_window     = var.maintenance_window
-  auto_pause             = var.auto_pause
-  max_capacity           = var.max_capacity
-  min_capacity           = var.min_capacity
+  source                   = "./modules/rds"
+  cluster_identifier       = "lodge104-${var.environment}-aurora"
+  username                 = var.db_username
+  password                 = var.db_password
+  security_group_id        = module.security.database_security_group_id
+  db_subnet_ids            = module.vpc.database_subnet_ids
+  backup_retention_period  = var.backup_retention_period
+  backup_window            = var.backup_window
+  maintenance_window       = var.maintenance_window
+  auto_pause               = var.auto_pause
+  max_capacity             = var.max_capacity
+  min_capacity             = var.min_capacity
   seconds_until_auto_pause = var.seconds_until_auto_pause
-  project_name           = var.project_name
-  environment            = var.environment
-}
-
-module "alb" {
-  source = "./modules/alb"
-  
-  project_name         = var.project_name
-  environment         = var.environment
-  vpc_id              = module.vpc.vpc_id
-  public_subnet_ids   = module.vpc.public_subnet_ids
-  security_group_ids  = [module.security.alb_security_group_id]
-  ssl_certificate_arn = module.acm.certificate_arn
-  enable_https_listener = var.domain_name != "" ? true : false
-  
-  # Backend HTTPS configuration
-  enable_https_backend = var.enable_https_backend
-  backend_port         = var.enable_https_backend ? 443 : 80
-  backend_protocol     = var.enable_https_backend ? "HTTPS" : "HTTP"
-}
-
-module "autoscaling" {
-  source = "./modules/autoscaling"
-  
-  project_name       = var.project_name
-  environment       = var.environment
-  ami_id            = data.aws_ami.amazon_linux_2.id
-  instance_type     = var.instance_type
-  key_name          = "wordpress-key" # You'll need to create this key pair
-  security_group_ids = [module.security.web_server_security_group_id]
-  subnet_ids        = module.vpc.private_subnet_ids
-  target_group_arn  = module.alb.target_group_arn
-  efs_file_system_id = module.efs.file_system_id
-  db_endpoint       = module.rds.cluster_endpoint
-  db_name           = var.db_name
-  db_username       = var.db_username
-  db_password       = var.db_password
-  redis_endpoint    = ""  # ElastiCache temporarily disabled
-  redis_port        = "6379"
-  redis_auth_token  = ""
-  primary_domain    = var.domain_name
-  enable_https_backend = var.enable_https_backend
-  min_size          = var.min_size
-  max_size          = var.max_size
-  desired_capacity  = var.desired_capacity
+  project_name             = var.project_name
+  environment              = var.environment
 }
 
 module "acm" {
   source = "./modules/acm"
-  
-  project_name     = var.project_name
+
+  project_name    = var.project_name
   environment     = var.environment
   domain_name     = var.domain_name
   route53_zone_id = var.route53_zone_id
 }
 
+# Elastic Beanstalk module for WordPress with PHP 8.4
+# Note: Elastic Beanstalk creates its own Application Load Balancer
+module "elasticbeanstalk" {
+  source = "./modules/elasticbeanstalk"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  vpc_id              = module.vpc.vpc_id
+  public_subnet_ids   = module.vpc.public_subnet_ids
+  private_subnet_ids  = module.vpc.private_subnet_ids
+  security_group_ids  = [module.security.web_server_security_group_id]
+  instance_type       = var.instance_type
+  min_size            = var.min_size
+  max_size            = var.max_size
+  efs_file_system_id  = module.efs.file_system_id
+  db_endpoint         = module.rds.cluster_endpoint
+  db_name             = var.db_name
+  db_username         = var.db_username
+  db_password         = var.db_password
+  redis_endpoint      = "" # ElastiCache temporarily disabled
+  redis_port          = "6379"
+  redis_auth_token    = ""
+  redis_auth_enabled  = false
+  primary_domain      = var.domain_name
+  ssl_certificate_arn = module.acm.certificate_arn
+  enable_https        = var.domain_name != "" ? true : false
+  key_name            = var.key_name
+
+  # PHP 8.3 is currently the latest stable version on Amazon Linux 2023
+  # PHP 8.4 will be used when AWS releases the solution stack
+  solution_stack_name = var.eb_solution_stack_name
+}
+
 module "cloudfront" {
   source = "./modules/cloudfront"
 
-  domain_name           = "${var.environment}.${var.domain_name}"
-  alb_domain_name       = module.alb.alb_dns_name
-  ssl_certificate_arn   = module.acm.certificate_arn
-  environment          = var.environment
+  domain_name         = "${var.environment}.${var.domain_name}"
+  alb_domain_name     = module.elasticbeanstalk.endpoint_url
+  ssl_certificate_arn = module.acm.certificate_arn
+  environment         = var.environment
 
   # Caching configuration
   price_class     = var.cloudfront_price_class
@@ -134,10 +124,10 @@ module "cloudfront" {
 
 module "route53" {
   source = "./modules/route53"
-  
+
   project_name           = var.project_name
-  environment           = var.environment
-  domain_name           = var.domain_name
+  environment            = var.environment
+  domain_name            = var.domain_name
   cloudfront_domain_name = module.cloudfront.cloudfront_domain_name
-  cloudfront_zone_id    = module.cloudfront.cloudfront_hosted_zone_id
+  cloudfront_zone_id     = module.cloudfront.cloudfront_hosted_zone_id
 }

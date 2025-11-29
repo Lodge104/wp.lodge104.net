@@ -2,7 +2,7 @@
 resource "aws_rds_cluster" "wordpress_aurora" {
   cluster_identifier           = var.cluster_identifier
   engine                       = "aurora-mysql"
-  engine_version               = "8.0.mysql_aurora.3.02.0"
+  engine_version               = "8.0.mysql_aurora.3.04.0"
   database_name                = var.db_name
   master_username              = var.username
   master_password              = var.password

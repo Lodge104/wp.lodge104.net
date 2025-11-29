@@ -45,6 +45,6 @@ resource "aws_acm_certificate_validation" "wordpress" {
   ]
 
   timeouts {
-    create = "5m"
+    create = "15m"
   }
 }

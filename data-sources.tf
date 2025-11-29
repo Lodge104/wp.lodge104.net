@@ -1,5 +1,8 @@
 # Data sources to read parameters from AWS Systems Manager Parameter Store
 # Use this file to read shared team configuration instead of local terraform.tfvars
+#
+# Note: When use_parameter_store is true, ALL parameters must exist in Parameter Store.
+# If a parameter doesn't exist, Terraform will fail during planning.
 
 # Read project configuration
 data "aws_ssm_parameter" "project_name" {
@@ -12,6 +15,7 @@ data "aws_ssm_parameter" "region" {
   name  = "/${var.project_name}/${var.environment}/region"
 }
 
+# Domain name is required when using Parameter Store
 data "aws_ssm_parameter" "domain_name" {
   count = var.use_parameter_store ? 1 : 0
   name  = "/${var.project_name}/${var.environment}/domain_name"
@@ -29,6 +33,7 @@ data "aws_ssm_parameter" "db_password" {
   with_decryption = true
 }
 
+# Redis auth token - required when using Parameter Store with Redis enabled
 data "aws_ssm_parameter" "redis_auth_token" {
   count           = var.use_parameter_store ? 1 : 0
   name            = "/${var.project_name}/${var.environment}/redis_auth_token"

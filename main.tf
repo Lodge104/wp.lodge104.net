@@ -106,7 +106,7 @@ module "elasticbeanstalk" {
 module "cloudfront" {
   source = "./modules/cloudfront"
 
-  domain_name         = "${var.environment}.${var.domain_name}"
+  domain_name         = var.domain_name
   alb_domain_name     = module.elasticbeanstalk.endpoint_url
   ssl_certificate_arn = module.acm.certificate_arn
   environment         = var.environment

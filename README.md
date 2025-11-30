@@ -30,7 +30,8 @@ The infrastructure consists of:
 │   ├── elasticbeanstalk/      # Elastic Beanstalk application & environment
 │   ├── elasticache/           # Redis cluster for caching (optional)
 │   ├── cloudfront/            # CloudFront distribution
-│   └── route53/               # DNS records
+│   ├── route53/               # DNS records
+│   └── wordpress-deployer/    # Lambda for WordPress deployment (dev only)
 ├── environments/
 │   ├── dev/                   # Development environment configs
 │   └── prod/                  # Production environment configs
@@ -196,6 +197,38 @@ The infrastructure is configured to use PHP 8.3 on Amazon Linux 2023. When AWS r
 ```hcl
 eb_solution_stack_name = "64bit Amazon Linux 2023 v4.x.x running PHP 8.4"
 ```
+
+## 🔧 WordPress Deployer Lambda (Dev Environment Only)
+
+In the development environment, a Lambda function is deployed to automate WordPress installation on EFS:
+
+- **Function Name**: `{project_name}-dev-wp-deployer`
+- **Runtime**: Python 3.10
+- **Timeout**: 5 minutes
+- **Purpose**: Downloads and deploys the latest WordPress to the EFS mount
+
+### Invoking the Lambda
+
+You can invoke the Lambda to deploy WordPress using the AWS CLI:
+
+```bash
+# Deploy WordPress (skips if already installed)
+# Replace {project_name} with your actual project name (default: wordpress)
+aws lambda invoke --function-name {project_name}-dev-wp-deployer output.json
+
+# Force reinstall WordPress
+aws lambda invoke --function-name {project_name}-dev-wp-deployer \
+  --payload '{"force_reinstall": true}' output.json
+```
+
+### What the Lambda Does
+
+1. Downloads the latest WordPress from wordpress.org
+2. Extracts and copies files to the EFS mount point
+3. Creates `wp-config.php` with database settings
+4. Generates secure authentication keys and salts
+5. Configures WordPress for multi-site support
+6. Sets appropriate file permissions
 
 ## 🏷️ Aurora Serverless Features
 

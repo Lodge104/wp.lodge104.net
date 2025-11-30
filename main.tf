@@ -131,3 +131,21 @@ module "route53" {
   cloudfront_domain_name = module.cloudfront.cloudfront_domain_name
   cloudfront_zone_id     = module.cloudfront.cloudfront_hosted_zone_id
 }
+
+# WordPress Deployer Lambda - Only for dev environment
+# This Lambda function deploys the latest WordPress to EFS
+module "wordpress_deployer" {
+  source = "./modules/wordpress-deployer"
+  count  = var.environment == "dev" ? 1 : 0
+
+  project_name       = var.project_name
+  environment        = var.environment
+  efs_file_system_id = module.efs.file_system_id
+  subnet_ids         = module.vpc.private_subnet_ids
+  security_group_ids = [module.security.efs_security_group_id]
+  db_host            = module.rds.cluster_endpoint
+  db_name            = var.db_name
+  db_username        = var.db_username
+  db_password        = var.db_password
+  primary_domain     = var.domain_name
+}

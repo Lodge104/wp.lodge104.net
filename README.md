@@ -200,35 +200,59 @@ eb_solution_stack_name = "64bit Amazon Linux 2023 v4.x.x running PHP 8.4"
 
 ## 🔧 WordPress Deployer Lambda (Dev Environment Only)
 
-In the development environment, a Lambda function is deployed to automate WordPress installation on EFS:
+In the development environment, a Lambda function is deployed to automate WordPress installation and configuration:
 
 - **Function Name**: `{project_name}-dev-wp-deployer`
 - **Runtime**: Python 3.10
 - **Timeout**: 5 minutes
-- **Purpose**: Downloads and deploys the latest WordPress to the EFS mount
+- **Purpose**: Downloads WordPress to EFS and configures it via SSM on Elastic Beanstalk instances
 
 ### Invoking the Lambda
 
-You can invoke the Lambda to deploy WordPress using the AWS CLI:
+You can invoke the Lambda to deploy and configure WordPress using the AWS CLI:
 
 ```bash
-# Deploy WordPress (skips if already installed)
+# Full deployment: Deploy files to EFS and configure via SSM
 # Replace {project_name} with your actual project name (default: wordpress)
-aws lambda invoke --function-name {project_name}-dev-wp-deployer output.json
-
-# Force reinstall WordPress
 aws lambda invoke --function-name {project_name}-dev-wp-deployer \
-  --payload '{"force_reinstall": true}' output.json
+  --payload '{"action": "full"}' output.json
+
+# Deploy only: Just deploy WordPress files to EFS
+aws lambda invoke --function-name {project_name}-dev-wp-deployer \
+  --payload '{"action": "deploy"}' output.json
+
+# Configure only: Install WP-CLI and configure WordPress via SSM
+aws lambda invoke --function-name {project_name}-dev-wp-deployer \
+  --payload '{"action": "configure"}' output.json
+
+# Force reinstall WordPress files
+aws lambda invoke --function-name {project_name}-dev-wp-deployer \
+  --payload '{"action": "full", "force_reinstall": true}' output.json
 ```
 
 ### What the Lambda Does
 
+**Deploy Action:**
 1. Downloads the latest WordPress from wordpress.org
 2. Extracts and copies files to the EFS mount point
-3. Creates `wp-config.php` with database settings
-4. Generates secure authentication keys and salts
-5. Configures WordPress for multi-site support
-6. Sets appropriate file permissions
+3. Sets appropriate file permissions
+
+**Configure Action (via SSM):**
+1. Finds running Elastic Beanstalk EC2 instances
+2. Installs WP-CLI on the instances
+3. Creates `wp-config.php` with database settings from Terraform
+4. Runs `wp core install` to complete WordPress setup
+5. Configures site URL, admin user, and email from Terraform variables
+
+### Configuration Variables
+
+Set these in your `terraform.tfvars` for the dev environment:
+
+```hcl
+wp_site_title  = "My WordPress Site"
+wp_admin_user  = "admin"
+wp_admin_email = "admin@example.com"
+```
 
 ## 🏷️ Aurora Serverless Features
 

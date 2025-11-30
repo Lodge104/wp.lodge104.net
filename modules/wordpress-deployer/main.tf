@@ -67,7 +67,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Action = [
           "ec2:CreateNetworkInterface",
           "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface"
+          "ec2:DeleteNetworkInterface",
+          "ec2:DescribeInstances"
         ]
         Resource = "*"
       },
@@ -77,6 +78,23 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "elasticfilesystem:ClientMount",
           "elasticfilesystem:ClientWrite",
           "elasticfilesystem:ClientRootAccess"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:SendCommand",
+          "ssm:GetCommandInvocation",
+          "ssm:ListCommandInvocations"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "elasticbeanstalk:DescribeEnvironments",
+          "elasticbeanstalk:DescribeEnvironmentResources"
         ]
         Resource = "*"
       }
@@ -90,7 +108,7 @@ resource "aws_lambda_function" "wordpress_deployer" {
   role          = aws_iam_role.lambda_role.arn
   handler       = "index.handler"
   runtime       = "python3.10"
-  timeout       = 300
+  timeout       = var.lambda_timeout
   memory_size   = 512
 
   filename         = data.archive_file.lambda_zip.output_path
@@ -108,12 +126,16 @@ resource "aws_lambda_function" "wordpress_deployer" {
 
   environment {
     variables = {
-      EFS_MOUNT_PATH = "/mnt/efs"
-      DB_HOST        = var.db_host
-      DB_NAME        = var.db_name
-      DB_USER        = var.db_username
-      DB_PASSWORD    = var.db_password
-      PRIMARY_DOMAIN = var.primary_domain
+      EFS_MOUNT_PATH      = "/mnt/efs"
+      DB_HOST             = var.db_host
+      DB_NAME             = var.db_name
+      DB_USER             = var.db_username
+      DB_PASSWORD         = var.db_password
+      PRIMARY_DOMAIN      = var.primary_domain
+      EB_ENVIRONMENT_NAME = var.eb_environment_name
+      SITE_TITLE          = var.site_title
+      ADMIN_USER          = var.admin_user
+      ADMIN_EMAIL         = var.admin_email
     }
   }
 
@@ -148,38 +170,157 @@ import tarfile
 import shutil
 import secrets
 import string
+import time
+import boto3
 
-def handler(event, context):
-    """
-    Lambda function to deploy the latest WordPress to EFS.
-    """
-    efs_path = os.environ.get('EFS_MOUNT_PATH', '/mnt/efs')
-    db_host = os.environ.get('DB_HOST', '')
-    db_name = os.environ.get('DB_NAME', 'wordpress')
-    db_user = os.environ.get('DB_USER', 'admin')
-    db_password = os.environ.get('DB_PASSWORD', '')
-    primary_domain = os.environ.get('PRIMARY_DOMAIN', 'localhost')
+def get_eb_instance_ids(eb_environment_name):
+    """Get instance IDs from Elastic Beanstalk environment."""
+    eb_client = boto3.client('elasticbeanstalk')
+    ec2_client = boto3.client('ec2')
     
+    try:
+        # Get environment resources
+        response = eb_client.describe_environment_resources(
+            EnvironmentName=eb_environment_name
+        )
+        
+        instance_ids = [i['Id'] for i in response['EnvironmentResources']['Instances']]
+        
+        if not instance_ids:
+            print(f"No instances found in environment {eb_environment_name}")
+            return []
+            
+        # Verify instances are running and SSM managed
+        ec2_response = ec2_client.describe_instances(InstanceIds=instance_ids)
+        running_instances = []
+        
+        for reservation in ec2_response['Reservations']:
+            for instance in reservation['Instances']:
+                if instance['State']['Name'] == 'running':
+                    running_instances.append(instance['InstanceId'])
+        
+        return running_instances
+        
+    except Exception as e:
+        print(f"Error getting EB instances: {str(e)}")
+        return []
+
+def run_ssm_command(instance_ids, commands, timeout=300):
+    """Run SSM command on instances and wait for completion."""
+    if not instance_ids:
+        return {'success': False, 'error': 'No instances provided'}
+    
+    ssm_client = boto3.client('ssm')
+    
+    try:
+        # Send command
+        response = ssm_client.send_command(
+            InstanceIds=instance_ids,
+            DocumentName='AWS-RunShellScript',
+            Parameters={'commands': commands},
+            TimeoutSeconds=timeout
+        )
+        
+        command_id = response['Command']['CommandId']
+        print(f"SSM Command ID: {command_id}")
+        
+        # Wait for command to complete
+        for _ in range(timeout // 5):
+            time.sleep(5)
+            
+            # Check command status for each instance
+            all_complete = True
+            results = []
+            
+            for instance_id in instance_ids:
+                try:
+                    result = ssm_client.get_command_invocation(
+                        CommandId=command_id,
+                        InstanceId=instance_id
+                    )
+                    
+                    status = result['Status']
+                    if status in ['Pending', 'InProgress']:
+                        all_complete = False
+                    else:
+                        results.append({
+                            'instance_id': instance_id,
+                            'status': status,
+                            'output': result.get('StandardOutputContent', ''),
+                            'error': result.get('StandardErrorContent', '')
+                        })
+                except ssm_client.exceptions.InvocationDoesNotExist:
+                    all_complete = False
+            
+            if all_complete:
+                return {'success': True, 'results': results}
+        
+        return {'success': False, 'error': 'Command timeout'}
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+def install_wp_cli(instance_ids):
+    """Install WP-CLI on instances."""
+    commands = [
+        'cd /tmp',
+        'curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar',
+        'chmod +x wp-cli.phar',
+        'sudo mv wp-cli.phar /usr/local/bin/wp',
+        'wp --info || echo "WP-CLI installation failed"'
+    ]
+    
+    return run_ssm_command(instance_ids, commands)
+
+def configure_wordpress(instance_ids, config):
+    """Configure WordPress using WP-CLI."""
+    db_host = config['db_host']
+    db_name = config['db_name']
+    db_user = config['db_user']
+    db_password = config['db_password']
+    site_url = config['site_url']
+    site_title = config['site_title']
+    admin_user = config['admin_user']
+    admin_email = config['admin_email']
+    wp_path = config['wp_path']
+    
+    # Generate random admin password with special characters for better security
+    password_chars = string.ascii_letters + string.digits + '!@#$%^&*'
+    admin_password = ''.join(secrets.choice(password_chars) for _ in range(20))
+    
+    commands = [
+        f'cd {wp_path}',
+        # Check if WordPress is already installed
+        f'if sudo -u webapp wp core is-installed --path={wp_path} 2>/dev/null; then',
+        f'  echo "WordPress already installed, updating configuration..."',
+        f'  sudo -u webapp wp option update siteurl "{site_url}" --path={wp_path}',
+        f'  sudo -u webapp wp option update home "{site_url}" --path={wp_path}',
+        f'else',
+        f'  echo "Installing WordPress..."',
+        # Create wp-config.php if it does not exist
+        f'  if [ ! -f {wp_path}/wp-config.php ]; then',
+        f'    sudo -u webapp wp config create --dbname="{db_name}" --dbuser="{db_user}" --dbpass="{db_password}" --dbhost="{db_host}" --path={wp_path}',
+        f'  fi',
+        # Install WordPress
+        f'  sudo -u webapp wp core install --url="{site_url}" --title="{site_title}" --admin_user="{admin_user}" --admin_password="{admin_password}" --admin_email="{admin_email}" --path={wp_path} --skip-email',
+        f'  echo "WordPress installed. Admin credentials have been set."',
+        f'fi',
+        # Enable multisite if needed
+        f'echo "WordPress configuration complete"'
+    ]
+    
+    return run_ssm_command(instance_ids, commands, timeout=600)
+
+def deploy_wordpress_files(efs_path, db_config):
+    """Deploy WordPress files to EFS."""
     wordpress_dir = efs_path
     wp_config_path = os.path.join(wordpress_dir, 'wp-config.php')
     
-    try:
-        # Check if WordPress is already installed
-        force_reinstall = event.get('force_reinstall', False)
-        
-        if os.path.exists(wp_config_path) and not force_reinstall:
-            return {
-                'statusCode': 200,
-                'body': json.dumps({
-                    'message': 'WordPress is already installed',
-                    'path': wordpress_dir,
-                    'action': 'skipped'
-                })
-            }
-        
-        # Create directory if it doesn't exist
-        os.makedirs(wordpress_dir, exist_ok=True)
-        
+    # Create directory if it doesn't exist
+    os.makedirs(wordpress_dir, exist_ok=True)
+    
+    # Check if WordPress files exist
+    if not os.path.exists(os.path.join(wordpress_dir, 'wp-includes')):
         # Download latest WordPress
         print("Downloading latest WordPress...")
         wp_url = "https://wordpress.org/latest.tar.gz"
@@ -192,7 +333,7 @@ def handler(event, context):
         with tarfile.open(tmp_file, 'r:gz') as tar:
             tar.extractall('/tmp')
         
-        # Copy files to EFS (merge if exists)
+        # Copy files to EFS
         print("Copying WordPress files to EFS...")
         src_dir = '/tmp/wordpress'
         
@@ -202,71 +343,11 @@ def handler(event, context):
             
             if os.path.isdir(src_item):
                 if os.path.exists(dst_item):
-                    # Merge directories
-                    for sub_item in os.listdir(src_item):
-                        src_sub = os.path.join(src_item, sub_item)
-                        dst_sub = os.path.join(dst_item, sub_item)
-                        if os.path.isdir(src_sub):
-                            shutil.copytree(src_sub, dst_sub, dirs_exist_ok=True)
-                        else:
-                            shutil.copy2(src_sub, dst_sub)
+                    shutil.copytree(src_item, dst_item, dirs_exist_ok=True)
                 else:
                     shutil.copytree(src_item, dst_item)
             else:
                 shutil.copy2(src_item, dst_item)
-        
-        # Create wp-config.php
-        print("Creating wp-config.php...")
-        wp_config_sample = os.path.join(wordpress_dir, 'wp-config-sample.php')
-        
-        if os.path.exists(wp_config_sample):
-            with open(wp_config_sample, 'r') as f:
-                config_content = f.read()
-            
-            # Generate security keys/salts
-            def generate_salt(length=64):
-                chars = string.ascii_letters + string.digits + '!@#$%^&*()-_=+[]{}|;:,.<>?'
-                return ''.join(secrets.choice(chars) for _ in range(length))
-            
-            # Replace database settings
-            config_content = config_content.replace("'database_name_here'", f"'{db_name}'")
-            config_content = config_content.replace("'username_here'", f"'{db_user}'")
-            config_content = config_content.replace("'password_here'", f"'{db_password}'")
-            config_content = config_content.replace("'localhost'", f"'{db_host}'")
-            
-            # Replace security keys
-            keys = ['AUTH_KEY', 'SECURE_AUTH_KEY', 'LOGGED_IN_KEY', 'NONCE_KEY', 
-                    'AUTH_SALT', 'SECURE_AUTH_SALT', 'LOGGED_IN_SALT', 'NONCE_SALT']
-            
-            for key in keys:
-                old_line = f"define( '{key}',         'put your unique phrase here' );"
-                new_line = f"define( '{key}',         '{generate_salt()}' );"
-                config_content = config_content.replace(old_line, new_line)
-            
-            # Add additional WordPress configurations before "That's all" comment
-            additional_config = f'''
-/* Custom WordPress Configuration */
-define('FS_METHOD', 'direct');
-define('WP_DEBUG', false);
-
-/* WordPress Multi-site Configuration */
-define('WP_ALLOW_MULTISITE', true);
-define('MULTISITE', true);
-define('SUBDOMAIN_INSTALL', true);
-define('DOMAIN_CURRENT_SITE', '{primary_domain}');
-define('PATH_CURRENT_SITE', '/');
-define('SITE_ID_CURRENT_SITE', 1);
-define('BLOG_ID_CURRENT_SITE', 1);
-define('COOKIE_DOMAIN', '.{primary_domain}');
-
-'''
-            config_content = config_content.replace(
-                "/* That's all, stop editing!",
-                additional_config + "/* That's all, stop editing!"
-            )
-            
-            with open(wp_config_path, 'w') as f:
-                f.write(config_content)
         
         # Set permissions
         print("Setting permissions...")
@@ -277,17 +358,128 @@ define('COOKIE_DOMAIN', '.{primary_domain}');
                 os.chmod(os.path.join(root, f), 0o644)
         
         # Cleanup
-        print("Cleaning up...")
         os.remove(tmp_file)
         shutil.rmtree('/tmp/wordpress', ignore_errors=True)
         
+        return True
+    
+    return False
+
+def handler(event, context):
+    """
+    Lambda function to deploy and configure WordPress.
+    
+    Actions:
+    - deploy: Deploy WordPress files to EFS
+    - configure: Install WP-CLI and configure WordPress via SSM
+    - full: Do both deploy and configure
+    """
+    efs_path = os.environ.get('EFS_MOUNT_PATH', '/mnt/efs')
+    db_host = os.environ.get('DB_HOST', '')
+    db_name = os.environ.get('DB_NAME', 'wordpress')
+    db_user = os.environ.get('DB_USER', 'admin')
+    db_password = os.environ.get('DB_PASSWORD', '')
+    primary_domain = os.environ.get('PRIMARY_DOMAIN', 'localhost')
+    eb_environment_name = os.environ.get('EB_ENVIRONMENT_NAME', '')
+    site_title = os.environ.get('SITE_TITLE', 'WordPress Site')
+    admin_user = os.environ.get('ADMIN_USER', 'admin')
+    admin_email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
+    
+    action = event.get('action', 'full')
+    force_reinstall = event.get('force_reinstall', False)
+    
+    results = {
+        'action': action,
+        'deploy': None,
+        'configure': None
+    }
+    
+    try:
+        # Deploy WordPress files
+        if action in ['deploy', 'full']:
+            print("Deploying WordPress files to EFS...")
+            
+            wp_exists = os.path.exists(os.path.join(efs_path, 'wp-includes'))
+            
+            if not wp_exists or force_reinstall:
+                deployed = deploy_wordpress_files(efs_path, {
+                    'db_host': db_host,
+                    'db_name': db_name,
+                    'db_user': db_user,
+                    'db_password': db_password
+                })
+                results['deploy'] = {
+                    'status': 'success',
+                    'message': 'WordPress files deployed' if deployed else 'WordPress files already exist'
+                }
+            else:
+                results['deploy'] = {
+                    'status': 'skipped',
+                    'message': 'WordPress files already exist'
+                }
+        
+        # Configure WordPress via SSM
+        if action in ['configure', 'full']:
+            print("Configuring WordPress via SSM...")
+            
+            if not eb_environment_name:
+                results['configure'] = {
+                    'status': 'error',
+                    'message': 'EB_ENVIRONMENT_NAME not set'
+                }
+            else:
+                # Get instance IDs
+                instance_ids = get_eb_instance_ids(eb_environment_name)
+                
+                if not instance_ids:
+                    results['configure'] = {
+                        'status': 'error',
+                        'message': 'No running instances found in EB environment'
+                    }
+                else:
+                    print(f"Found instances: {instance_ids}")
+                    
+                    # Install WP-CLI
+                    print("Installing WP-CLI...")
+                    wp_cli_result = install_wp_cli(instance_ids)
+                    
+                    if not wp_cli_result['success']:
+                        results['configure'] = {
+                            'status': 'error',
+                            'message': f"WP-CLI installation failed: {wp_cli_result.get('error', 'Unknown error')}"
+                        }
+                    else:
+                        # Configure WordPress
+                        print("Configuring WordPress...")
+                        site_url = f"https://{primary_domain}" if primary_domain else "http://localhost"
+                        
+                        config_result = configure_wordpress(instance_ids, {
+                            'db_host': db_host,
+                            'db_name': db_name,
+                            'db_user': db_user,
+                            'db_password': db_password,
+                            'site_url': site_url,
+                            'site_title': site_title,
+                            'admin_user': admin_user,
+                            'admin_email': admin_email,
+                            'wp_path': '/var/www/html'
+                        })
+                        
+                        if config_result['success']:
+                            results['configure'] = {
+                                'status': 'success',
+                                'message': 'WordPress configured successfully',
+                                'details': config_result['results']
+                            }
+                        else:
+                            results['configure'] = {
+                                'status': 'error',
+                                'message': f"WordPress configuration failed: {config_result.get('error', 'Unknown error')}"
+                            }
+        
         return {
             'statusCode': 200,
-            'body': json.dumps({
-                'message': 'WordPress deployed successfully',
-                'path': wordpress_dir,
-                'action': 'deployed'
-            })
+            'body': json.dumps(results)
         }
         
     except Exception as e:
@@ -295,7 +487,7 @@ define('COOKIE_DOMAIN', '.{primary_domain}');
         return {
             'statusCode': 500,
             'body': json.dumps({
-                'message': f'Error deploying WordPress: {str(e)}',
+                'message': f'Error: {str(e)}',
                 'action': 'failed'
             })
         }

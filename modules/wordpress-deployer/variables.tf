@@ -55,3 +55,32 @@ variable "primary_domain" {
   type        = string
   default     = ""
 }
+
+variable "eb_environment_name" {
+  description = "Elastic Beanstalk environment name for SSM targeting"
+  type        = string
+}
+
+variable "site_title" {
+  description = "WordPress site title"
+  type        = string
+  default     = "WordPress Site"
+}
+
+variable "admin_user" {
+  description = "WordPress admin username"
+  type        = string
+  default     = "admin"
+}
+
+variable "admin_email" {
+  description = "WordPress admin email"
+  type        = string
+  default     = "admin@example.com"
+}
+
+variable "lambda_timeout" {
+  description = "Lambda function timeout in seconds"
+  type        = number
+  default     = 300
+}

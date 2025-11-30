@@ -133,19 +133,23 @@ module "route53" {
 }
 
 # WordPress Deployer Lambda - Only for dev environment
-# This Lambda function deploys the latest WordPress to EFS
+# This Lambda function deploys the latest WordPress to EFS and configures it via SSM
 module "wordpress_deployer" {
   source = "./modules/wordpress-deployer"
   count  = var.environment == "dev" ? 1 : 0
 
-  project_name       = var.project_name
-  environment        = var.environment
-  efs_file_system_id = module.efs.file_system_id
-  subnet_ids         = module.vpc.private_subnet_ids
-  security_group_ids = [module.security.efs_security_group_id]
-  db_host            = module.rds.cluster_endpoint
-  db_name            = var.db_name
-  db_username        = var.db_username
-  db_password        = var.db_password
-  primary_domain     = var.domain_name
+  project_name        = var.project_name
+  environment         = var.environment
+  efs_file_system_id  = module.efs.file_system_id
+  subnet_ids          = module.vpc.private_subnet_ids
+  security_group_ids  = [module.security.efs_security_group_id]
+  db_host             = module.rds.cluster_endpoint
+  db_name             = var.db_name
+  db_username         = var.db_username
+  db_password         = var.db_password
+  primary_domain      = var.domain_name
+  eb_environment_name = module.elasticbeanstalk.environment_name
+  site_title          = var.wp_site_title
+  admin_user          = var.wp_admin_user
+  admin_email         = var.wp_admin_email
 }

@@ -184,7 +184,8 @@ def get_eb_instance_ids(eb_environment_name):
             EnvironmentName=eb_environment_name
         )
         
-        instance_ids = [i['Id'] for i in response['EnvironmentResources']['Instances']]
+        instances = response.get('EnvironmentResources', {}).get('Instances', [])
+        instance_ids = [i.get('Id') for i in instances if i.get('Id')]
         
         if not instance_ids:
             print(f"No instances found in environment {eb_environment_name}")
@@ -199,6 +200,15 @@ def get_eb_instance_ids(eb_environment_name):
                 if instance['State']['Name'] == 'running':
                     running_instances.append(instance['InstanceId'])
         
+        # Cross-check SSM managed instances in the account
+        try:
+          ssm_client = boto3.client('ssm')
+          ssm_info = ssm_client.describe_instance_information()
+          ssm_ids = {item['InstanceId'] for item in ssm_info.get('InstanceInformationList', [])}
+          running_instances = [iid for iid in running_instances if iid in ssm_ids]
+        except Exception as ssm_err:
+          print(f"SSM check failed: {ssm_err}")
+
         return running_instances
         
     except Exception as e:
@@ -462,7 +472,7 @@ def handler(event, context):
                             'site_title': site_title,
                             'admin_user': admin_user,
                             'admin_email': admin_email,
-                            'wp_path': '/var/www/html'
+                            'wp_path': '/var/www/html/wordpress'
                         })
                         
                         if config_result['success']:

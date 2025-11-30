@@ -1,0 +1,1 @@
+{"statusCode": 200, "body": "{\"action\": \"configure\", \"deploy\": null, \"configure\": {\"status\": \"error\", \"message\": \"No running instances found in EB environment\"}}"}

@@ -120,6 +120,14 @@ resource "aws_security_group" "efs" {
     security_groups = [aws_security_group.web_server.id]
   }
 
+  ingress {
+    description = "NFS from Lambda (self-referencing)"
+    from_port   = 2049
+    to_port     = 2049
+    protocol    = "tcp"
+    self        = true
+  }
+
   egress {
     description = "All outbound traffic"
     from_port   = 0

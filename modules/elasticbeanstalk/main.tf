@@ -125,6 +125,7 @@ resource "aws_elastic_beanstalk_environment" "wordpress" {
   name                = "${var.project_name}-${var.environment}-env"
   application         = aws_elastic_beanstalk_application.wordpress.name
   solution_stack_name = var.solution_stack_name
+  version_label       = aws_elastic_beanstalk_application_version.wordpress_version.name
   tier                = "WebServer"
 
   # VPC Configuration
@@ -348,4 +349,38 @@ resource "aws_elastic_beanstalk_environment" "wordpress" {
     Name        = "${var.project_name}-${var.environment}-env"
     Environment = var.environment
   }
+}
+
+# Package and deploy bootstrap application that mounts EFS and points DocumentRoot to /mnt/efs
+data "archive_file" "eb_app" {
+  type        = "zip"
+  source_dir  = "${path.module}/app"
+  output_path = "${path.module}/app.zip"
+}
+
+resource "aws_s3_bucket" "eb_app_bucket" {
+  bucket        = lower(replace("${var.project_name}-${var.environment}-eb-apps", "_", "-"))
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_versioning" "eb_app_bucket_versioning" {
+  bucket = aws_s3_bucket.eb_app_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_object" "eb_app_bundle" {
+  bucket = aws_s3_bucket.eb_app_bucket.id
+  key    = "app-${data.archive_file.eb_app.output_md5}.zip"
+  source = data.archive_file.eb_app.output_path
+  etag   = data.archive_file.eb_app.output_md5
+}
+
+resource "aws_elastic_beanstalk_application_version" "wordpress_version" {
+  application = aws_elastic_beanstalk_application.wordpress.name
+  name        = "wp-efs-${data.archive_file.eb_app.output_md5}"
+  description = "WordPress EFS bootstrap"
+  bucket      = aws_s3_bucket.eb_app_bucket.id
+  key         = aws_s3_object.eb_app_bundle.key
 }

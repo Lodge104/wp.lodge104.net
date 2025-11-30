@@ -128,6 +128,8 @@ module "route53" {
   project_name           = var.project_name
   environment            = var.environment
   domain_name            = var.domain_name
+  create_hosted_zone     = false
+  existing_zone_id       = var.route53_zone_id
   cloudfront_domain_name = module.cloudfront.cloudfront_domain_name
   cloudfront_zone_id     = module.cloudfront.cloudfront_hosted_zone_id
 }

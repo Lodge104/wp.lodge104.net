@@ -7,7 +7,7 @@
  */
 
 // Check if WordPress is installed and accessible
-$wordpress_dir = '/var/www/efs/wordpress';
+$wordpress_dir = '/mnt/efs/wordpress';
 $wp_config = $wordpress_dir . '/wp-config.php';
 
 if (file_exists($wp_config)) {

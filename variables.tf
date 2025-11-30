@@ -291,23 +291,3 @@ variable "key_name" {
   type        = string
   default     = ""
 }
-
-# WordPress Configuration (for dev environment Lambda deployer)
-variable "wp_site_title" {
-  description = "WordPress site title"
-  type        = string
-  default     = "WordPress Site"
-}
-
-variable "wp_admin_user" {
-  description = "WordPress admin username"
-  type        = string
-  default     = "admin"
-}
-
-variable "wp_admin_email" {
-  description = "WordPress admin email"
-  type        = string
-  default     = "admin@example.com"
-}
-

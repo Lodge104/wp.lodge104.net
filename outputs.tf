@@ -84,14 +84,3 @@ output "route53_zone_id" {
   description = "Route53 hosted zone ID"
   value       = module.route53.hosted_zone_id
 }
-
-# WordPress Deployer Lambda Outputs (dev environment only)
-output "wordpress_deployer_lambda_name" {
-  description = "Name of the WordPress deployer Lambda function (dev only)"
-  value       = var.environment == "dev" ? module.wordpress_deployer[0].lambda_function_name : null
-}
-
-output "wordpress_deployer_lambda_arn" {
-  description = "ARN of the WordPress deployer Lambda function (dev only)"
-  value       = var.environment == "dev" ? module.wordpress_deployer[0].lambda_function_arn : null
-}

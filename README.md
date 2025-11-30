@@ -30,8 +30,7 @@ The infrastructure consists of:
 │   ├── elasticbeanstalk/      # Elastic Beanstalk application & environment
 │   ├── elasticache/           # Redis cluster for caching (optional)
 │   ├── cloudfront/            # CloudFront distribution
-│   ├── route53/               # DNS records
-│   └── wordpress-deployer/    # Lambda for WordPress deployment (dev only)
+│   └── route53/               # DNS records
 ├── environments/
 │   ├── dev/                   # Development environment configs
 │   └── prod/                  # Production environment configs
@@ -198,60 +197,44 @@ The infrastructure is configured to use PHP 8.3 on Amazon Linux 2023. When AWS r
 eb_solution_stack_name = "64bit Amazon Linux 2023 v4.x.x running PHP 8.4"
 ```
 
-## 🔧 WordPress Deployer Lambda (Dev Environment Only)
+## 🔧 WordPress Deployment via Elastic Beanstalk
 
-In the development environment, a Lambda function is deployed to automate WordPress installation and configuration:
+WordPress is automatically deployed and configured through Elastic Beanstalk `.ebextensions` configuration files during instance provisioning:
 
-- **Function Name**: `{project_name}-dev-wp-deployer`
-- **Runtime**: Python 3.10
-- **Timeout**: 5 minutes
-- **Purpose**: Downloads WordPress to EFS and configures it via SSM on Elastic Beanstalk instances
+### Automatic WordPress Setup
 
-### Invoking the Lambda
+The `.ebextensions/03-wordpress-setup.config` file handles:
 
-You can invoke the Lambda to deploy and configure WordPress using the AWS CLI:
+1. **Downloads the latest WordPress** from wordpress.org
+2. **Extracts and installs** WordPress to the EFS-mounted directory
+3. **Creates `wp-config.php`** with database settings from environment variables
+4. **Configures WordPress for multi-site** support with subdomain installation
+5. **Sets up Redis object caching** when ElastiCache is enabled
+6. **Links the web root** to the WordPress installation on EFS
 
-```bash
-# Full deployment: Deploy files to EFS and configure via SSM
-# Replace {project_name} with your actual project name (default: wordpress)
-aws lambda invoke --function-name {project_name}-dev-wp-deployer \
-  --payload '{"action": "full"}' output.json
+### Environment Variables
 
-# Deploy only: Just deploy WordPress files to EFS
-aws lambda invoke --function-name {project_name}-dev-wp-deployer \
-  --payload '{"action": "deploy"}' output.json
+The following environment variables are automatically passed to WordPress:
 
-# Configure only: Install WP-CLI and configure WordPress via SSM
-aws lambda invoke --function-name {project_name}-dev-wp-deployer \
-  --payload '{"action": "configure"}' output.json
+| Variable | Description |
+|----------|-------------|
+| `DB_HOST` | Aurora database endpoint |
+| `DB_NAME` | Database name |
+| `DB_USER` | Database username |
+| `DB_PASSWORD` | Database password |
+| `PRIMARY_DOMAIN` | Primary domain for the site |
+| `REDIS_HOST` | Redis endpoint (when enabled) |
+| `REDIS_PORT` | Redis port |
 
-# Force reinstall WordPress files
-aws lambda invoke --function-name {project_name}-dev-wp-deployer \
-  --payload '{"action": "full", "force_reinstall": true}' output.json
-```
+### WordPress Multi-site Configuration
 
-### What the Lambda Does
+WordPress is automatically configured with multi-site settings:
 
-**Deploy Action:**
-1. Downloads the latest WordPress from wordpress.org
-2. Extracts and copies files to the EFS mount point
-3. Sets appropriate file permissions
-
-**Configure Action (via SSM):**
-1. Finds running Elastic Beanstalk EC2 instances
-2. Installs WP-CLI on the instances
-3. Creates `wp-config.php` with database settings from Terraform
-4. Runs `wp core install` to complete WordPress setup
-5. Configures site URL, admin user, and email from Terraform variables
-
-### Configuration Variables
-
-Set these in your `terraform.tfvars` for the dev environment:
-
-```hcl
-wp_site_title  = "My WordPress Site"
-wp_admin_user  = "admin"
-wp_admin_email = "admin@example.com"
+```php
+define('WP_ALLOW_MULTISITE', true);
+define('MULTISITE', true);
+define('SUBDOMAIN_INSTALL', true);
+define('DOMAIN_CURRENT_SITE', 'yourdomain.com');
 ```
 
 ## 🏷️ Aurora Serverless Features

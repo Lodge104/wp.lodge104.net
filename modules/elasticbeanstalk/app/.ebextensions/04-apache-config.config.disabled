@@ -1,0 +1,28 @@
+files:
+  "/etc/httpd/conf.d/wordpress.conf":
+    mode: "000644"
+    owner: root
+    group: root
+    content: |
+      <VirtualHost *:80>
+        DocumentRoot /var/www/efs/wordpress
+        
+        <Directory /var/www/efs/wordpress>
+          Options Indexes FollowSymLinks
+          AllowOverride All
+          Require all granted
+        </Directory>
+        
+        <IfModule mod_rewrite.c>
+          RewriteEngine On
+          RewriteBase /
+          RewriteRule ^index\.php$ - [L]
+          RewriteCond %{REQUEST_FILENAME} !-f
+          RewriteCond %{REQUEST_FILENAME} !-d
+          RewriteRule . /index.php [L]
+        </IfModule>
+      </VirtualHost>
+
+container_commands:
+  01_restart_httpd:
+    command: systemctl restart httpd

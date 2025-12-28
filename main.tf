@@ -111,6 +111,9 @@ module "cloudfront" {
   ssl_certificate_arn = module.acm.certificate_arn
   environment         = var.environment
 
+  # Origin configuration - use HTTP since EB load balancer doesn't have SSL
+  origin_protocol_policy = "http-only"
+
   # Caching configuration
   price_class     = var.cloudfront_price_class
   default_ttl     = var.cloudfront_default_ttl

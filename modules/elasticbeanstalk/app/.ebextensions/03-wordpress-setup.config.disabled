@@ -1,0 +1,5 @@
+# WordPress is already on EFS from previous deployments
+# This config ensures the directory exists
+commands:
+  01_create_wordpress_dir:
+    command: "mkdir -p /var/www/efs/wordpress && chown -R webapp:webapp /var/www/efs"

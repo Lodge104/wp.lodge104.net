@@ -11,9 +11,15 @@ variable "environment" {
 }
 
 variable "domain_name" {
-  description = "Primary domain name. A Route 53 hosted zone for this domain must already exist."
+  description = "Apex domain name. A Route 53 hosted zone for this domain must already exist."
   type        = string
   default     = "lodge104.net"
+}
+
+variable "site_domain" {
+  description = "FQDN of the WordPress site (ACM cert, CloudFront alias, Route 53 record). Can be the apex domain or a subdomain."
+  type        = string
+  default     = "prod.lodge104.net"
 }
 
 # ── Networking ──────────────────────────────────────────────────────────────────

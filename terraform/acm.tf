@@ -3,9 +3,8 @@
 # CloudFront requires the cert to be in us-east-1 — we deploy everything there.
 
 resource "aws_acm_certificate" "wordpress" {
-  domain_name               = var.domain_name
-  subject_alternative_names = ["www.${var.domain_name}"]
-  validation_method         = "DNS"
+  domain_name       = var.site_domain
+  validation_method = "DNS"
 
   lifecycle {
     create_before_destroy = true

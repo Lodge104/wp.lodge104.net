@@ -1,10 +1,10 @@
 # data.aws_route53_zone.wordpress is defined in acm.tf
 
-# ── Apex domain ───────────────────────────────────────────────────────────────────
+# ── prod.lodge104.net subdomain ───────────────────────────────────────────────────
 
-resource "aws_route53_record" "apex_a" {
+resource "aws_route53_record" "site_a" {
   zone_id = data.aws_route53_zone.wordpress.zone_id
-  name    = var.domain_name
+  name    = var.site_domain
   type    = "A"
 
   alias {
@@ -14,35 +14,9 @@ resource "aws_route53_record" "apex_a" {
   }
 }
 
-resource "aws_route53_record" "apex_aaaa" {
+resource "aws_route53_record" "site_aaaa" {
   zone_id = data.aws_route53_zone.wordpress.zone_id
-  name    = var.domain_name
-  type    = "AAAA"
-
-  alias {
-    name                   = aws_cloudfront_distribution.wordpress.domain_name
-    zone_id                = aws_cloudfront_distribution.wordpress.hosted_zone_id
-    evaluate_target_health = false
-  }
-}
-
-# ── www subdomain ─────────────────────────────────────────────────────────────────
-
-resource "aws_route53_record" "www_a" {
-  zone_id = data.aws_route53_zone.wordpress.zone_id
-  name    = "www.${var.domain_name}"
-  type    = "A"
-
-  alias {
-    name                   = aws_cloudfront_distribution.wordpress.domain_name
-    zone_id                = aws_cloudfront_distribution.wordpress.hosted_zone_id
-    evaluate_target_health = false
-  }
-}
-
-resource "aws_route53_record" "www_aaaa" {
-  zone_id = data.aws_route53_zone.wordpress.zone_id
-  name    = "www.${var.domain_name}"
+  name    = var.site_domain
   type    = "AAAA"
 
   alias {

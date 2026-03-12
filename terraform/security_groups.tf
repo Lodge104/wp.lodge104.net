@@ -9,14 +9,22 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
 # When cloudfront.tf is re-enabled, swap cidr_blocks for prefix_list_ids.
 
 resource "aws_security_group" "alb" {
-  name        = "${var.environment}-alb-sg"
-  description = "Allow inbound HTTP/HTTPS (open during pre-CloudFront phase)"
+  name        = "${var.environment}-alb-cf-sg"
+  description = "Allow inbound HTTP/HTTPS from CloudFront edge nodes only"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "HTTP from internet (temporary - lock to CloudFront prefix list when CF is enabled)"
+    description = "HTTP from internet (redirected to HTTPS by ALB)"
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS from internet (403 without CloudFront secret header)"
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -29,7 +37,7 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "${var.environment}-alb-sg" }
+  tags = { Name = "${var.environment}-alb-cf-sg" }
 }
 
 # ── EC2 Security Group ────────────────────────────────────────────────────────────

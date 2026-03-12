@@ -1,9 +1,12 @@
 output "site_url" {
-  description = "Primary WordPress site URL (HTTP until CloudFront/ACM are enabled)."
-  value       = "http://${aws_lb.wordpress.dns_name}"
+  description = "Primary WordPress site URL."
+  value       = "https://${var.site_domain}"
 }
 
-# cloudfront_domain output is defined in cloudfront.tf — re-enable with that file.
+output "cloudfront_domain" {
+  description = "CloudFront distribution domain name."
+  value       = aws_cloudfront_distribution.wordpress.domain_name
+}
 
 output "alb_dns_name" {
   description = "ALB DNS name. Access is restricted to CloudFront only — do not use directly."

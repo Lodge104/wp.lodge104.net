@@ -56,8 +56,8 @@ resource "aws_ssm_parameter" "cache_host" {
 resource "aws_ssm_parameter" "domain" {
   name        = "/lodge104/app/domain"
   type        = "String"
-  value       = var.domain_name
-  description = "Primary domain name"
+  value       = var.site_domain
+  description = "WordPress site domain"
 }
 
 # ── CloudFront origin verification ────────────────────────────────────────────────

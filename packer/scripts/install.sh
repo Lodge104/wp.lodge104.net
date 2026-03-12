@@ -4,6 +4,9 @@
 # so that httpd always waits for the EFS mount before starting.
 set -euo pipefail
 
+echo "==> Waiting for cloud-init to finish"
+cloud-init status --wait || true
+
 echo "==> Updating system packages"
 dnf update -y
 
@@ -18,13 +21,13 @@ dnf install -y \
   php-intl \
   php-zip \
   php-opcache \
-  php-pecl-zip \
   mod_ssl
 
 echo "==> Installing EFS utilities and supporting tools"
 dnf install -y \
   amazon-efs-utils \
   nfs-utils \
+  amazon-ssm-agent \
   jq \
   unzip
 
@@ -173,6 +176,7 @@ echo "==> Enabling services (will start on next boot after user-data configures 
 systemctl daemon-reload
 systemctl enable mount-efs.service
 systemctl enable httpd
+systemctl enable amazon-ssm-agent
 systemctl enable amazon-cloudwatch-agent
 
 echo "==> Blocking default Apache index page"

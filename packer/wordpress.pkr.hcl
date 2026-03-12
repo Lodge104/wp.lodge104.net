@@ -22,6 +22,11 @@ variable "ami_name_prefix" {
   default = "lodge104-wordpress"
 }
 
+variable "subnet_id" {
+  type        = string
+  description = "Public subnet ID to launch the Packer build instance in. Must have a route to an IGW."
+}
+
 locals {
   timestamp = formatdate("YYYYMMDDhhmm", timestamp())
   ami_name  = "${var.ami_name_prefix}-${local.timestamp}"
@@ -44,6 +49,7 @@ source "amazon-ebs" "al2023" {
 
   ssh_username                = "ec2-user"
   associate_public_ip_address = true
+  subnet_id                   = var.subnet_id
 
   launch_block_device_mappings {
     device_name           = "/dev/xvda"
@@ -72,6 +78,7 @@ build {
   sources = ["source.amazon-ebs.al2023"]
 
   provisioner "shell" {
-    script = "scripts/install.sh"
+    script          = "scripts/install.sh"
+    execute_command = "sudo -E bash '{{.Path}}'"
   }
 }

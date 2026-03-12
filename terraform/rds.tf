@@ -40,7 +40,7 @@ resource "aws_rds_cluster_parameter_group" "wordpress" {
 resource "aws_rds_cluster" "wordpress" {
   cluster_identifier     = "${var.environment}-wordpress"
   engine                 = "aurora-mysql"
-  engine_version         = "8.0.mysql_aurora.3.07.1"
+  engine_version         = "8.0.mysql_aurora.3.12.0"
   database_name          = var.db_name
   master_username        = var.db_username
   master_password        = random_password.db.result
@@ -73,8 +73,8 @@ resource "aws_rds_cluster_instance" "writer" {
   identifier           = "${var.environment}-wordpress-writer"
   cluster_identifier   = aws_rds_cluster.wordpress.id
   instance_class       = "db.serverless"
-  engine               = aws_rds_cluster.wordpress.engine
-  engine_version       = aws_rds_cluster.wordpress.engine_version
+  engine         = aws_rds_cluster.wordpress.engine
+  engine_version = aws_rds_cluster.wordpress.engine_version
   db_subnet_group_name = aws_db_subnet_group.wordpress.name
 
   auto_minor_version_upgrade   = true

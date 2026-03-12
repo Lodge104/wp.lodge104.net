@@ -1,30 +1,24 @@
 # CloudFront managed prefix list — used to restrict ALB access to CloudFront only.
+# Not referenced while cloudfront.tf is disabled, but the data source is harmless.
 data "aws_ec2_managed_prefix_list" "cloudfront" {
   name = "com.amazonaws.global.cloudfront.origin-facing"
 }
 
 # ── ALB Security Group ────────────────────────────────────────────────────────────
-# Only CloudFront edge nodes can reach the ALB; direct access is blocked.
+# While CloudFront is disabled, allow HTTP from anywhere so the site is reachable.
+# When cloudfront.tf is re-enabled, swap cidr_blocks for prefix_list_ids.
 
 resource "aws_security_group" "alb" {
   name        = "${var.environment}-alb-sg"
-  description = "Allow inbound HTTPS/HTTP from CloudFront edge nodes only"
+  description = "Allow inbound HTTP/HTTPS (open during pre-CloudFront phase)"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "HTTPS from CloudFront"
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront.id]
-  }
-
-  ingress {
-    description     = "HTTP from CloudFront (for redirect listener)"
-    from_port       = 80
-    to_port         = 80
-    protocol        = "tcp"
-    prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront.id]
+    description = "HTTP from internet (temporary - lock to CloudFront prefix list when CF is enabled)"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {

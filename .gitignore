@@ -1,0 +1,31 @@
+# ── Terraform ─────────────────────────────────────────────────────────────────────
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ── Packer ────────────────────────────────────────────────────────────────────────
+packer_cache/
+*.pkrvars.hcl
+!*.pkrvars.hcl.example
+manifest.json
+
+# ── Secrets / local config ────────────────────────────────────────────────────────
+.env
+*.pem
+*.key
+
+# ── macOS ─────────────────────────────────────────────────────────────────────────
+.DS_Store
+
+# ── Editor ────────────────────────────────────────────────────────────────────────
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,14 @@
+[Thu Mar 12 21:35:44.923305 2026] [suexec:notice] [pid 2290:tid 2290] AH01232: suEXEC mechanism enabled (wrapper: /usr/sbin/suexec)
+[Thu Mar 12 21:35:44.941184 2026] [so:warn] [pid 2290:tid 2290] AH01574: module remoteip_module is already loaded, skipping
+[Thu Mar 12 21:35:44.949242 2026] [lbmethod_heartbeat:notice] [pid 2290:tid 2290] AH02282: No slotmem from mod_heartmonitor
+[Thu Mar 12 21:35:44.950680 2026] [systemd:notice] [pid 2290:tid 2290] AH10497: SELinux is enabled; httpd running as context system_u:system_r:httpd_t:s0
+[Thu Mar 12 21:35:44.963214 2026] [mpm_event:notice] [pid 2290:tid 2290] AH00489: Apache/2.4.66 (Amazon Linux) OpenSSL/3.2.2 configured -- resuming normal operations
+[Thu Mar 12 21:35:44.963523 2026] [core:notice] [pid 2290:tid 2290] AH00094: Command line: '/usr/sbin/httpd -D FOREGROUND'
+---
+define( 'DB_NAME',     'wordpress' );
+define( 'DB_USER',     'wpuser' );
+define( 'DB_HOST',     'prod-wordpress.cluster-c1hef1pcdszl.us-east-1.rds.amazonaws.com' );
+$table_prefix = 'wp_';
+define( 'WP_SITEURL', 'https://prod.lodge104.net' );
+---
+

@@ -1,0 +1,56 @@
+=== EFS MOUNTS ===
+tracefs on /sys/kernel/tracing type tracefs (rw,nosuid,nodev,noexec,relatime,seclabel)
+sunrpc on /var/lib/nfs/rpc_pipefs type rpc_pipefs (rw,relatime)
+=== EFS CONTENTS ===
+total 248
+drwxr-xr-x.  5 root root  6144 Mar 12 20:07 .
+drwxr-xr-x.  4 root root    33 Mar 12 19:33 ..
+-rw-------.  1 root root   768 Mar 12 20:07 .wp-salts
+-rw-r--r--.  1 root root   405 Mar 12 20:07 index.php
+-rw-r--r--.  1 root root 19903 Mar 12 20:07 license.txt
+-rw-r--r--.  1 root root  7425 Mar 12 20:07 readme.html
+-rw-r--r--.  1 root root  7349 Mar 12 20:07 wp-activate.php
+drwxr-xr-x.  9 root root  6144 Mar 12 20:07 wp-admin
+-rw-r--r--.  1 root root   351 Mar 12 20:07 wp-blog-header.php
+-rw-r--r--.  1 root root  2323 Mar 12 20:07 wp-comments-post.php
+-rw-r--r--.  1 root root  3339 Mar 12 20:07 wp-config-sample.php
+-rw-r-----.  1 root root  4516 Mar 12 21:35 wp-config.php
+drwxr-xr-x.  4 root root  6144 Mar 12 20:07 wp-content
+-rw-r--r--.  1 root root  5617 Mar 12 20:07 wp-cron.php
+drwxr-xr-x. 31 root root 14336 Mar 12 20:07 wp-includes
+-rw-r--r--.  1 root root  2493 Mar 12 20:06 wp-links-opml.php
+-rw-r--r--.  1 root root  3937 Mar 12 20:06 wp-load.php
+-rw-r--r--.  1 root root 51437 Mar 12 20:06 wp-login.php
+-rw-r--r--.  1 root root  8727 Mar 12 20:06 wp-mail.php
+-rw-r--r--.  1 root root 31055 Mar 12 20:06 wp-settings.php
+-rw-r--r--.  1 root root 34516 Mar 12 20:06 wp-signup.php
+-rw-r--r--.  1 root root  5214 Mar 12 20:06 wp-trackback.php
+-rw-r--r--.  1 root root  3205 Mar 12 20:06 xmlrpc.php
+=== APACHE STATUS ===
+● httpd.service - The Apache HTTP Server
+     Loaded: loaded (/usr/lib/systemd/system/httpd.service; enabled; preset: disabled)
+    Drop-In: /usr/lib/systemd/system/httpd.service.d
+             └─php-fpm.conf
+             /etc/systemd/system/httpd.service.d
+             └─wait-for-efs.conf
+     Active: active (running) since Thu 2026-03-12 21:35:44 UTC; 5min ago
+       Docs: man:httpd.service(8)
+   Main PID: 2290 (httpd)
+     Status: "Total requests: 37; Idle/Busy workers 100/0;Requests/sec: 0.106; Bytes served/sec:  50 B/sec"
+      Tasks: 177 (limit: 2261)
+     Memory: 21.9M
+        CPU: 429ms
+     CGroup: /system.slice/httpd.service
+             ├─2290 /usr/sbin/httpd -DFOREGROUND
+             ├─2320 /usr/sbin/httpd -DFOREGROUND
+             ├─2321 /usr/sbin/httpd -DFOREGROUND
+             ├─2391 /usr/sbin/httpd -DFOREGROUND
+             └─2392 /usr/sbin/httpd -DFOREGROUND
+
+Mar 12 21:35:44 ip-10-0-13-57.ec2.internal systemd[1]: Starting httpd.service - The Apache HTTP Server...
+Mar 12 21:35:44 ip-10-0-13-57.ec2.internal httpd[2290]: [Thu Mar 12 21:35:44.890419 2026] [so:warn] [pid 2290:tid 2290] AH01574: module remoteip_module is already loaded, skipping
+Mar 12 21:35:44 ip-10-0-13-57.ec2.internal httpd[2290]: Server configured, listening on: port 443, port 80
+Mar 12 21:35:44 ip-10-0-13-57.ec2.internal systemd[1]: Started httpd.service - The Apache HTTP Server.
+	/var/lib/amazon/ssm/i-0b633872f6c3d3661/document/orchestration/f5709e9c-48ab-4d74-9e87-d61588cab248/awsrunShellScript/0.awsrunShellScript/_script.sh: line 7: syntax error near unexpected token `('
+/var/lib/amazon/ssm/i-0b633872f6c3d3661/document/orchestration/f5709e9c-48ab-4d74-9e87-d61588cab248/awsrunShellScript/0.awsrunShellScript/_script.sh: line 7: `echo === APACHE ERROR LOG (last 30) ==='
+failed to run commands: exit status 2

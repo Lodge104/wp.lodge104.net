@@ -1,0 +1,40 @@
+httpd_can_network_connect --> off
+httpd_can_network_connect_db --> off
+[12-Mar-2026 21:40:34 UTC] PHP Warning:  require_once(/var/www/html/wp-config.php): Failed to open stream: Permission denied in /var/www/html/wp-load.php on line 50
+[12-Mar-2026 21:40:34 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/var/www/html/wp-config.php' (include_path='.:/usr/share/pear:/usr/share/php') in /var/www/html/wp-load.php:50
+Stack trace:
+#0 /var/www/html/wp-login.php(12): require()
+#1 {main}
+  thrown in /var/www/html/wp-load.php on line 50
+[12-Mar-2026 21:40:34 UTC] PHP Warning:  require_once(/var/www/html/wp-config.php): Failed to open stream: Permission denied in /var/www/html/wp-load.php on line 50
+[12-Mar-2026 21:40:34 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/var/www/html/wp-config.php' (include_path='.:/usr/share/pear:/usr/share/php') in /var/www/html/wp-load.php:50
+Stack trace:
+#0 /var/www/html/wp-login.php(12): require()
+#1 {main}
+  thrown in /var/www/html/wp-load.php on line 50
+[12-Mar-2026 21:41:04 UTC] PHP Warning:  require_once(/var/www/html/wp-config.php): Failed to open stream: Permission denied in /var/www/html/wp-load.php on line 50
+[12-Mar-2026 21:41:04 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/var/www/html/wp-config.php' (include_path='.:/usr/share/pear:/usr/share/php') in /var/www/html/wp-load.php:50
+Stack trace:
+#0 /var/www/html/wp-login.php(12): require()
+#1 {main}
+  thrown in /var/www/html/wp-load.php on line 50
+[12-Mar-2026 21:41:04 UTC] PHP Warning:  require_once(/var/www/html/wp-config.php): Failed to open stream: Permission denied in /var/www/html/wp-load.php on line 50
+[12-Mar-2026 21:41:04 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/var/www/html/wp-config.php' (include_path='.:/usr/share/pear:/usr/share/php') in /var/www/html/wp-load.php:50
+Stack trace:
+#0 /var/www/html/wp-login.php(12): require()
+#1 {main}
+  thrown in /var/www/html/wp-load.php on line 50
+[12-Mar-2026 21:41:04 UTC] PHP Warning:  require_once(/var/www/html/wp-config.php): Failed to open stream: Permission denied in /var/www/html/wp-load.php on line 50
+[12-Mar-2026 21:41:04 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/var/www/html/wp-config.php' (include_path='.:/usr/share/pear:/usr/share/php') in /var/www/html/wp-load.php:50
+Stack trace:
+#0 /var/www/html/wp-login.php(12): require()
+#1 {main}
+  thrown in /var/www/html/wp-load.php on line 50
+[12-Mar-2026 21:29:41] NOTICE: fpm is running, pid 1514
+[12-Mar-2026 21:29:41] NOTICE: ready to handle connections
+[12-Mar-2026 21:29:41] NOTICE: systemd monitor interval set to 10000ms
+[12-Mar-2026 21:35:39] NOTICE: fpm is running, pid 1507
+[12-Mar-2026 21:35:39] NOTICE: ready to handle connections
+[12-Mar-2026 21:35:39] NOTICE: systemd monitor interval set to 10000ms
+no denials
+

@@ -6,25 +6,9 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.6"
-    }
-    null = {
-      source  = "hashicorp/null"
-      version = "~> 3.2"
-    }
   }
 }
 
 provider "aws" {
   region = var.aws_region
-
-  default_tags {
-    tags = {
-      Project     = "lodge104.net"
-      Environment = var.environment
-      ManagedBy   = "terraform"
-    }
-  }
 }

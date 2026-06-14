@@ -4,6 +4,7 @@
     "ghcr.io/devcontainers/features/aws-cli:1": {},
     "ghcr.io/devcontainers/features/terraform:1": {},
     "ghcr.io/meaningful-ooo/devcontainer-features/homebrew:2": {},
-    "ghcr.io/devcontainers-extra/features/packer-asdf:2": {}
+    "ghcr.io/devcontainers-extra/features/packer-asdf:2": {},
+    "ghcr.io/flexwie/devcontainer-features/op:1": {}
   }
 }

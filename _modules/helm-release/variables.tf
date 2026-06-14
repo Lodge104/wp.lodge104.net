@@ -1,13 +1,3 @@
-variable "cluster_name" {
-  description = "EKS cluster name. Used to look up endpoint and CA data via data source."
-  type        = string
-}
-
-variable "region" {
-  description = "AWS region where the EKS cluster resides (passed to aws eks get-token)."
-  type        = string
-}
-
 variable "release_name" {
   description = "Helm release name."
   type        = string
@@ -56,15 +46,6 @@ variable "atomic" {
   description = "Roll back the release automatically on failure."
   type        = bool
   default     = false
-}
-
-variable "set_values" {
-  description = "List of name/value pairs passed as --set arguments to Helm. Useful for values sourced from Terragrunt dependency outputs."
-  type = list(object({
-    name  = string
-    value = string
-  }))
-  default = []
 }
 
 variable "values" {

@@ -34,22 +34,38 @@ terraform {
   source = "${get_repo_root()}//_modules/helm-release"
 }
 
+# Generate the Helm provider configuration as a root-module file.
+# Providers must not be declared inside reusable child modules.
+generate "helm_provider" {
+  path      = "helm_provider.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<-EOF
+    data "aws_eks_cluster" "wordpress" {
+      name = "lodge104-${local.env}"
+    }
+
+    provider "helm" {
+      kubernetes {
+        host                   = data.aws_eks_cluster.wordpress.endpoint
+        cluster_ca_certificate = base64decode(data.aws_eks_cluster.wordpress.certificate_authority[0].data)
+
+        exec {
+          api_version = "client.authentication.k8s.io/v1beta1"
+          command     = "aws"
+          args        = ["eks", "get-token", "--cluster-name", "lodge104-${local.env}", "--region", "${local.region}"]
+        }
+      }
+    }
+  EOF
+}
+
 inputs = {
-  cluster_name  = dependency.eks.outputs.cluster_name
-  region        = local.region
   release_name  = local.common.locals.release_name
   repository    = local.common.locals.repository
   chart         = local.common.locals.chart
   chart_version = local.common.locals.chart_version
   namespace     = local.common.locals.namespace
   atomic        = true
-
-  set_values = [
-    { name = "externalDatabase.host",     value = dependency.rds.outputs.cluster_endpoint },
-    { name = "externalDatabase.port",     value = "3306" },
-    { name = "externalDatabase.user",     value = "lodge104" },
-    { name = "externalDatabase.database", value = "lodge104" },
-  ]
 
   values = [
     local.common.locals.base_values,
@@ -60,11 +76,15 @@ inputs = {
       replicaCount: 2
       resourcesPreset: medium
 
+      externalDatabase:
+        host: "${dependency.rds.outputs.cluster_endpoint}"
+        port: 3306
+        user: lodge104
+        database: lodge104
+        existingSecret: lodge104-test-rds-credentials
+
       ingress:
         hostname: test.lodge104.net
-
-      externalDatabase:
-        existingSecret: lodge104-test-rds-credentials
 
       persistence:
         size: 10Gi

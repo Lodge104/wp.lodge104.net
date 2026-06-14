@@ -23,23 +23,30 @@ dependency "vpc" {
 }
 
 terraform {
-  source = "tfr:///terraform-aws-modules/rds/aws?version=6.10.0"
+  source = "tfr:///terraform-aws-modules/rds-aurora/aws?version=9.3.0"
 }
 
 inputs = merge(
   local.common.locals,
   {
-    identifier = "lodge104-${local.env}"
+    name = "lodge104-${local.env}"
 
-    instance_class        = "db.t3.small"
-    allocated_storage     = 20
-    max_allocated_storage = 100
+    # Serverless v2 scaling – moderate capacity ceiling for test workloads
+    serverlessv2_scaling_configuration = {
+      min_capacity = 0.5
+      max_capacity = 16
+    }
+
+    instances = {
+      writer  = { instance_class = "db.serverless" }
+      reader1 = { instance_class = "db.serverless" } # reader for HA parity with prod
+    }
 
     db_subnet_group_name   = "lodge104-${local.env}"
-    subnet_ids             = dependency.vpc.outputs.private_subnets
+    subnets                = dependency.vpc.outputs.private_subnets
+    vpc_id                 = dependency.vpc.outputs.vpc_id
     vpc_security_group_ids = []
 
-    multi_az            = true  # HA parity with prod
     deletion_protection = false
     skip_final_snapshot = false
   }

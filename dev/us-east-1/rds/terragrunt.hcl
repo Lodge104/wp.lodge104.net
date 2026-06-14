@@ -23,23 +23,30 @@ dependency "vpc" {
 }
 
 terraform {
-  source = "tfr:///terraform-aws-modules/rds/aws?version=6.10.0"
+  source = "tfr:///terraform-aws-modules/rds-aurora/aws?version=9.3.0"
 }
 
 inputs = merge(
   local.common.locals,
   {
-    identifier = "lodge104-${local.env}"
+    name = "lodge104-${local.env}"
 
-    instance_class        = "db.t3.micro" # cost savings in dev
-    allocated_storage     = 20
-    max_allocated_storage = 50
+    # Serverless v2 scaling – start small in dev, max 4 ACUs
+    serverlessv2_scaling_configuration = {
+      min_capacity             = 0.5
+      max_capacity             = 4
+      seconds_until_auto_pause = 300 # pause after 5 min idle in dev
+    }
+
+    instances = {
+      writer = { instance_class = "db.serverless" }
+    }
 
     db_subnet_group_name   = "lodge104-${local.env}"
-    subnet_ids             = dependency.vpc.outputs.private_subnets
-    vpc_security_group_ids = [] # attach a dedicated RDS SG
+    subnets                = dependency.vpc.outputs.private_subnets
+    vpc_id                 = dependency.vpc.outputs.vpc_id
+    vpc_security_group_ids = [] # attach a dedicated Aurora SG
 
-    multi_az            = false
     deletion_protection = false
     skip_final_snapshot = true # allow easy teardown in dev
   }

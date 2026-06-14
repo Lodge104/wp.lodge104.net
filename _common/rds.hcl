@@ -1,19 +1,20 @@
-# Common RDS defaults – override in each env's terragrunt.hcl as needed.
+# Common Aurora MySQL Serverless v2 defaults – override in each env's terragrunt.hcl as needed.
 locals {
-  engine               = "mysql"
-  engine_version       = "8.0"
-  family               = "mysql8.0"
-  major_engine_version = "8.0"
+  engine                = "aurora-mysql"
+  engine_version        = "8.0"
+  engine_mode           = "provisioned" # Serverless v2 uses provisioned mode with db.serverless instances
+  family                = "aurora-mysql8.0"
+  major_engine_version  = "8.0"
 
   port    = 3306
   db_name = "lodge104"
 
-  # Credentials should be sourced from AWS Secrets Manager or SSM in real deployments.
+  # Credentials managed via AWS Secrets Manager (rotate automatically).
   manage_master_user_password = true
 
   backup_retention_period = 7
-  backup_window           = "03:00-06:00"
-  maintenance_window      = "Mon:00:00-Mon:03:00"
+  preferred_backup_window           = "03:00-06:00"
+  preferred_maintenance_window      = "Mon:00:00-Mon:03:00"
 
   enabled_cloudwatch_logs_exports = ["general", "error", "slowquery"]
 
@@ -25,4 +26,7 @@ locals {
 
   auto_minor_version_upgrade = true
   apply_immediately          = false
+
+  # Serverless v2 requires at least one instance of class db.serverless.
+  instance_class = "db.serverless"
 }

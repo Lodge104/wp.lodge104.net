@@ -23,28 +23,35 @@ dependency "vpc" {
 }
 
 terraform {
-  source = "tfr:///terraform-aws-modules/rds/aws?version=6.10.0"
+  source = "tfr:///terraform-aws-modules/rds-aurora/aws?version=9.3.0"
 }
 
 inputs = merge(
   local.common.locals,
   {
-    identifier = "lodge104-${local.env}"
+    name = "lodge104-${local.env}"
 
-    instance_class        = "db.r6g.large"
-    allocated_storage     = 100
-    max_allocated_storage = 1000
+    # Serverless v2 scaling – scales to meet production demand
+    serverlessv2_scaling_configuration = {
+      min_capacity = 1
+      max_capacity = 64
+    }
+
+    instances = {
+      writer  = { instance_class = "db.serverless" }
+      reader1 = { instance_class = "db.serverless" }
+      reader2 = { instance_class = "db.serverless" } # second reader for read scaling + failover
+    }
 
     db_subnet_group_name   = "lodge104-${local.env}"
-    subnet_ids             = dependency.vpc.outputs.private_subnets
+    subnets                = dependency.vpc.outputs.private_subnets
+    vpc_id                 = dependency.vpc.outputs.vpc_id
     vpc_security_group_ids = []
 
-    multi_az            = true
     deletion_protection = true
     skip_final_snapshot = false
 
-    backup_retention_period = 30
-
+    backup_retention_period               = 30
     performance_insights_retention_period = 731 # maximum 2 years
   }
 )

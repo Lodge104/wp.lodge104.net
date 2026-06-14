@@ -30,6 +30,15 @@ dependency "rds" {
   mock_outputs_allowed_terraform_commands = ["validate", "plan"]
 }
 
+dependency "efs" {
+  config_path = "../efs"
+
+  mock_outputs = {
+    storage_class_name = "efs-sc"
+  }
+  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+}
+
 terraform {
   source = "${get_repo_root()}//_modules/helm-release"
 }

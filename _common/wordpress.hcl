@@ -36,7 +36,9 @@ locals {
 
     persistence:
       enabled: true
-      storageClass: gp3
+      storageClass: efs-sc
+      accessModes:
+        - ReadWriteMany
 
     metrics:
       enabled: true

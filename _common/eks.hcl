@@ -29,7 +29,7 @@ locals {
     vpc-cni = {
       most_recent = true
     }
-    aws-ebs-csi-driver = {
+    aws-efs-csi-driver = {
       most_recent = true
     }
   }

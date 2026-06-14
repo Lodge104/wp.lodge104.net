@@ -1,7 +1,12 @@
 terraform {
   required_providers {
-    # AWS provider is declared by the root Terragrunt-generated provider.tf.
-    # Only the Helm provider needs to be added here.
+    # The root Terragrunt-generated provider.tf declares the aws provider
+    # configuration; we declare the version constraint here so the module
+    # can be validated and initialised independently.
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
     helm = {
       source  = "hashicorp/helm"
       version = "~> 2.16"

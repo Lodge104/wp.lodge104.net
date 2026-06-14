@@ -3,13 +3,9 @@
 # Defines remote state backend and shared provider/inputs for all modules.
 # -----------------------------------------------------------------------------
 
-locals {
-  env_vars    = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
-
-  env    = local.env_vars.locals.env
-  region = local.region_vars.locals.aws_region
-}
+# Note: env/region locals are NOT read here because find_in_parent_folders is
+# evaluated in the root file's own directory context and cannot traverse into
+# child env/region trees. Each child module reads those files in its own locals.
 
 # ---------------------------------------------------------------------------
 # Remote state – all envs share one S3 bucket, keys are scoped by path.
@@ -46,24 +42,8 @@ generate "provider" {
       }
     }
 
-    provider "aws" {
-      region = "${local.region}"
-
-      default_tags {
-        tags = {
-          Environment = "${local.env}"
-          ManagedBy   = "Terragrunt"
-          Project     = "lodge104"
-        }
-      }
-    }
+    # Region and tags are set via the AWS_DEFAULT_REGION env var and the
+    # inputs passed by each child module's terragrunt.hcl.
+    provider "aws" {}
   EOF
-}
-
-# ---------------------------------------------------------------------------
-# Common inputs propagated to every module.
-# ---------------------------------------------------------------------------
-inputs = {
-  env    = local.env
-  region = local.region
 }

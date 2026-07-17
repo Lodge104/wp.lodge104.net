@@ -13,11 +13,11 @@
 remote_state {
   backend = "s3"
   config = {
-    bucket         = "lodge104-terraform-state"
-    key            = "${path_relative_to_include()}/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    dynamodb_table = "lodge104-terraform-locks"
+    bucket       = "lodge104-terraform-state"
+    key          = "${path_relative_to_include()}/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
   }
   generate = {
     path      = "backend.tf"
@@ -34,12 +34,6 @@ generate "provider" {
   contents  = <<-EOF
     terraform {
       required_version = ">= 1.5.0"
-      required_providers {
-        aws = {
-          source  = "hashicorp/aws"
-          version = "~> 5.0"
-        }
-      }
     }
 
     # Region and tags are set via the AWS_DEFAULT_REGION env var and the

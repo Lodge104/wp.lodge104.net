@@ -18,7 +18,7 @@ dependency "eks" {
   mock_outputs = {
     cluster_name = "lodge104-test"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 dependency "rds" {
@@ -27,7 +27,7 @@ dependency "rds" {
   mock_outputs = {
     cluster_endpoint = "lodge104-test.cluster-xxxxxxxxxxxx.us-east-1.rds.amazonaws.com"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 dependency "efs" {
@@ -36,7 +36,7 @@ dependency "efs" {
   mock_outputs = {
     storage_class_name = "efs-sc"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 terraform {

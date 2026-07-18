@@ -10,6 +10,7 @@ locals {
   db_name = "lodge104"
 
   # Credentials managed via AWS Secrets Manager (rotate automatically).
+  master_username              = "lodge104admin"
   manage_master_user_password = true
 
   backup_retention_period = 7

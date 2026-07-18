@@ -29,7 +29,7 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    cluster_id = "lodge104-${local.env}"
+    replication_group_id = "lodge104-${local.env}"
 
     cluster_mode_enabled       = true
     automatic_failover_enabled = true

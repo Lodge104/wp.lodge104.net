@@ -8,4 +8,8 @@ locals {
 
   validation_method   = "DNS"
   wait_for_validation = true
+
+  # Public hosted zone for lodge104.net – all envs validate their
+  # subdomain/wildcard certs against this same Route53 zone.
+  zone_id = "Z02518842QX1X2K88785A"
 }

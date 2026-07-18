@@ -29,4 +29,8 @@ locals {
 
   # Serverless v2 requires at least one instance of class db.serverless.
   instance_class = "db.serverless"
+
+  # Module defaults create_db_subnet_group to false (expects an existing
+  # group); we want it created from the subnets/vpc_id we pass in.
+  create_db_subnet_group = true
 }

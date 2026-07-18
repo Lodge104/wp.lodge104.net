@@ -24,13 +24,13 @@ dependency "vpc" {
 }
 
 terraform {
-  source = "tfr:///terraform-aws-modules/eks/aws?version=20.31.0"
+  source = "tfr:///terraform-aws-modules/eks/aws?version=21.24.0"
 }
 
 inputs = merge(
   local.common.locals,
   {
-    cluster_name = "lodge104-${local.env}"
+    name = "lodge104-${local.env}"
 
     vpc_id                   = dependency.vpc.outputs.vpc_id
     subnet_ids               = dependency.vpc.outputs.private_subnets

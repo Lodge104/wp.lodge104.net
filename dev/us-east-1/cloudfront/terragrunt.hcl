@@ -14,7 +14,7 @@ dependency "acm" {
   config_path = "../acm"
 
   mock_outputs = {
-    acertificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+    acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
@@ -31,7 +31,7 @@ inputs = merge(
     aliases = ["${local.env}.lodge104.net"]
 
     viewer_certificate = {
-      acm_certificate_arn      = dependency.acm.outputs.acertificate_arn
+      acm_certificate_arn      = dependency.acm.outputs.acm_certificate_arn
       minimum_protocol_version = "TLSv1.2_2021"
       ssl_support_method       = "sni-only"
     }

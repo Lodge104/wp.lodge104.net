@@ -29,7 +29,7 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    cluster_id = "lodge104-${local.env}"
+    replication_group_id = "lodge104-${local.env}"
 
     # Valkey cluster mode disabled in dev (single node for cost savings)
     cluster_mode_enabled       = false

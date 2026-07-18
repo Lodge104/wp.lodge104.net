@@ -36,7 +36,7 @@ inputs = merge(
       ssl_support_method       = "sni-only"
     }
 
-    origins = {
+    origin = {
       alb = {
         domain_name = "${local.env}.lodge104.net"
         custom_origin_config = {

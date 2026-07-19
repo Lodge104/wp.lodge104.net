@@ -42,7 +42,7 @@ inputs = merge(
 
     # Serverless v2 scaling – start small in dev, max 4 ACUs
     serverlessv2_scaling_configuration = {
-      min_capacity             = 0.5
+      min_capacity             = 0
       max_capacity             = 4
       seconds_until_auto_pause = 300 # pause after 5 min idle in dev
     }

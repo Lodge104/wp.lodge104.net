@@ -18,6 +18,11 @@ variable "eks_cluster_name" {
   type        = string
 }
 
+variable "region" {
+  description = "AWS region where the EKS cluster is deployed. Passed as --region to aws eks get-token."
+  type        = string
+}
+
 variable "eks_node_security_group_id" {
   description = "Security group ID attached to EKS managed node groups. Granted NFS ingress to EFS."
   type        = string

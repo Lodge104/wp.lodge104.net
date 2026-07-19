@@ -41,6 +41,7 @@ inputs = {
   subnet_ids                 = dependency.vpc.outputs.private_subnets
   eks_cluster_name           = dependency.eks.outputs.cluster_name
   eks_node_security_group_id = dependency.eks.outputs.node_security_group_id
+  region                     = local.region
 
   # Elastic throughput scales automatically – cost-efficient for dev workloads.
   throughput_mode = "elastic"

@@ -1,7 +1,7 @@
 # Common Aurora MySQL Serverless v2 defaults – override in each env's terragrunt.hcl as needed.
 locals {
   engine                = "aurora-mysql"
-  engine_version        = "8.0"
+  engine_version        = "8.0.mysql_aurora.3.08.0"
   engine_mode           = "provisioned" # Serverless v2 uses provisioned mode with db.serverless instances
   family                = "aurora-mysql8.0"
   major_engine_version  = "8.0"

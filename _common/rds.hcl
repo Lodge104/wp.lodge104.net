@@ -6,8 +6,8 @@ locals {
   family                = "aurora-mysql8.0"
   major_engine_version  = "8.0"
 
-  port    = 3306
-  db_name = "lodge104"
+  port          = 3306
+  database_name = "lodge104"
 
   # Credentials managed via AWS Secrets Manager (rotate automatically).
   master_username              = "lodge104admin"

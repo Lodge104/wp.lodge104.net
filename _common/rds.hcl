@@ -15,7 +15,7 @@ locals {
 
   backup_retention_period = 7
   preferred_backup_window           = "03:00-06:00"
-  preferred_maintenance_window      = "Mon:00:00-Mon:03:00"
+  preferred_maintenance_window      = "mon:00:00-mon:03:00"
 
   enabled_cloudwatch_logs_exports = ["general", "error", "slowquery"]
 

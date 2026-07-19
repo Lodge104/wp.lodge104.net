@@ -64,6 +64,11 @@ variable "rds_secret_name" {
   description = "Name of the Kubernetes Secret to create from the RDS master user secret. Required when `rds_master_user_secret_arn` is set."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.rds_master_user_secret_arn == null || coalesce(var.rds_secret_name, "") != ""
+    error_message = "When rds_master_user_secret_arn is set, rds_secret_name must be a non-empty string."
+  }
 }
 
 variable "rds_secret_key" {
@@ -82,4 +87,9 @@ variable "ingress_name" {
   description = "Name of the Kubernetes Ingress resource to read back when `expose_ingress_hostname` is true. Required when `expose_ingress_hostname` is set."
   type        = string
   default     = null
+
+  validation {
+    condition     = !var.expose_ingress_hostname || coalesce(var.ingress_name, "") != ""
+    error_message = "When expose_ingress_hostname is true, ingress_name must be a non-empty string."
+  }
 }

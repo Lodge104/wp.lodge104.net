@@ -60,6 +60,15 @@ dependency "acm" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
+dependency "alb_security_group" {
+  config_path = "../alb-security-group"
+
+  mock_outputs = {
+    id = "sg-00000000000000000"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+}
+
 # No outputs needed from eks-addons; this dependency only enforces apply
 # ordering so the AWS Load Balancer Controller exists before the WordPress
 # Ingress (which relies on it) is created.
@@ -165,6 +174,7 @@ inputs = {
       ingress:
         annotations:
           alb.ingress.kubernetes.io/certificate-arn: "${dependency.acm.outputs.acm_certificate_arn}"
+          alb.ingress.kubernetes.io/security-groups: "${dependency.alb_security_group.outputs.id}"
     YAML
     ,
     <<-YAML

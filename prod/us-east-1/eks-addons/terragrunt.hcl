@@ -24,6 +24,15 @@ dependency "eks" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
+dependency "vpc" {
+  config_path = "../vpc"
+
+  mock_outputs = {
+    vpc_id = "vpc-00000000000000000"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+}
+
 terraform {
   source = "tfr:///aws-ia/eks-blueprints-addons/aws?version=1.24.3"
 }
@@ -71,5 +80,17 @@ inputs = merge(
     cluster_endpoint  = dependency.eks.outputs.cluster_endpoint
     cluster_version   = dependency.eks.outputs.cluster_version
     oidc_provider_arn = dependency.eks.outputs.oidc_provider_arn
+
+    # EC2 metadata-based VPC auto-discovery fails for the controller, so pass
+    # the VPC ID explicitly via helm values.
+    aws_load_balancer_controller = {
+      wait = true
+      set = [
+        {
+          name  = "vpcId"
+          value = dependency.vpc.outputs.vpc_id
+        }
+      ]
+    }
   }
 )

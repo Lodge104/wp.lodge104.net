@@ -164,5 +164,47 @@ inputs = {
         annotations:
           alb.ingress.kubernetes.io/certificate-arn: "${dependency.acm.outputs.acm_certificate_arn}"
     YAML
+    ,
+    <<-YAML
+      # Persisted WordPress data lives on EFS and survives RDS cluster
+      # replacements / Secrets Manager password rotations. If the DB
+      # password baked into the persisted wp-config.php no longer matches
+      # the current RDS secret, the chart's "restore" boot path fails to
+      # connect and crash-loops. This init container detects that mismatch
+      # and wipes the persisted data so the main container does a clean
+      # re-install against the current credentials instead.
+      extraVolumes:
+        - name: rds-credentials-check
+          secret:
+            secretName: lodge104-${local.env}-rds-credentials
+
+      initContainers:
+        - name: reconcile-db-password
+          image: docker.io/bitnami/os-shell:12
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              WP_CONFIG=/bitnami/wordpress/wp-config.php
+              CURRENT_PW="$(cat /rds-credentials/mariadb-password)"
+              if [ -f "$WP_CONFIG" ]; then
+                if grep -qF "$CURRENT_PW" "$WP_CONFIG"; then
+                  echo "Persisted WordPress DB password matches the current RDS secret; leaving install intact."
+                else
+                  echo "Persisted WordPress DB password is stale (RDS secret has rotated/changed) -- wiping persisted data for a clean re-install."
+                  find /bitnami/wordpress -mindepth 1 -exec rm -rf {} + 2>/dev/null || true
+                fi
+              else
+                echo "No persisted wp-config.php found; nothing to reconcile."
+              fi
+          volumeMounts:
+            - name: wordpress-data
+              mountPath: /bitnami/wordpress
+              subPath: wordpress
+            - name: rds-credentials-check
+              mountPath: /rds-credentials
+              readOnly: true
+    YAML
   ]
 }

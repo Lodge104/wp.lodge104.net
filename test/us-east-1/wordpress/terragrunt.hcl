@@ -174,6 +174,13 @@ inputs = {
           alb.ingress.kubernetes.io/certificate-arn: "${dependency.acm.outputs.acm_certificate_arn}"
           alb.ingress.kubernetes.io/security-groups: "${dependency.alb_security_group.outputs.id}"
           alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
+        # CloudFront sends the origin's own domain name as the Host header
+        # (not the viewer-facing test.lodge104.net) for custom origins, so
+        # the ALB needs a matching rule for it too or it falls through to
+        # the default 404 fixed-response.
+        extraHosts:
+          - name: origin.test.lodge104.net
+            path: /
     YAML
     ,
     <<-YAML

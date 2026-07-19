@@ -33,7 +33,7 @@ generate "provider" {
   if_exists = "overwrite_terragrunt"
   contents  = <<-EOF
     terraform {
-      required_version = ">= 1.5.0"
+      required_version = ">= 1.7.0"
     }
 
     # Region and tags are set via the AWS_DEFAULT_REGION env var and the

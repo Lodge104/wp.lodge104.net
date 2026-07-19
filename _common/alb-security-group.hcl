@@ -1,8 +1,7 @@
 # Common defaults for the ALB-facing security group – restricts the
 # WordPress ALB listener to CloudFront's origin-facing IP ranges so the
 # origin can't be reached directly, bypassing CloudFront/any WAF in front
-# of it. Only the listener port differs nothing per env, so this is fully
-# shared.
+# of it. Nothing differs per env, so this is fully shared.
 locals {
   ingress_rules = {
     https_from_cloudfront = {

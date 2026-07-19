@@ -226,7 +226,7 @@ inputs = {
               WP_CONFIG=/bitnami/wordpress/wp-config.php
               CURRENT_PW="$(cat /rds-credentials/mariadb-password)"
               if [ -f "$WP_CONFIG" ]; then
-                if grep -qF "$CURRENT_PW" "$WP_CONFIG"; then
+                if grep -qF -- "$CURRENT_PW" "$WP_CONFIG"; then
                   echo "Persisted WordPress DB password matches the current RDS secret; leaving install intact."
                 else
                   echo "Persisted WordPress DB password is stale (RDS secret has rotated/changed) -- wiping persisted data for a clean re-install."

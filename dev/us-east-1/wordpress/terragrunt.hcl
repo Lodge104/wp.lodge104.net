@@ -147,10 +147,6 @@ inputs = {
         port: 3306
         user: lodge104admin
         database: lodge104
-        # Kubernetes Secret with key "mariadb-password".
-        # Create via: kubectl create secret generic lodge104-dev-rds-credentials \
-        #   --namespace wordpress \
-        #   --from-literal=mariadb-password=<aurora-db-password>
         existingSecret: lodge104-dev-rds-credentials
 
       externalCache:
@@ -209,7 +205,7 @@ inputs = {
               WP_CONFIG=/bitnami/wordpress/wp-config.php
               CURRENT_PW="$(cat /rds-credentials/mariadb-password)"
               if [ -f "$WP_CONFIG" ]; then
-                if grep -qF "$CURRENT_PW" "$WP_CONFIG"; then
+                if grep -qF -- "$CURRENT_PW" "$WP_CONFIG"; then
                   echo "Persisted WordPress DB password matches the current RDS secret; leaving install intact."
                 else
                   echo "Persisted WordPress DB password is stale (RDS secret has rotated/changed) -- wiping persisted data for a clean re-install."

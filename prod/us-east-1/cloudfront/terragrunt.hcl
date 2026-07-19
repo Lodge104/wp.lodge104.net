@@ -19,6 +19,15 @@ dependency "acm" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
+dependency "wordpress" {
+  config_path = "../wordpress"
+
+  mock_outputs = {
+    ingress_hostname = "mock-alb-123456789.us-east-1.elb.amazonaws.com"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/cloudfront/aws?version=3.4.1"
 }
@@ -41,7 +50,7 @@ inputs = merge(
 
     origin = {
       alb = {
-        domain_name = "lodge104.net"
+        domain_name = dependency.wordpress.outputs.ingress_hostname
         custom_origin_config = {
           http_port              = 80
           https_port             = 443

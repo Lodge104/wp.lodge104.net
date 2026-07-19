@@ -27,12 +27,14 @@ locals {
 
     ingress:
       enabled: true
-      ingressClassName: nginx
+      ingressClassName: alb
       pathType: Prefix
-      tls: true
+      tls: false
       annotations:
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-        nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+        alb.ingress.kubernetes.io/scheme: internet-facing
+        alb.ingress.kubernetes.io/target-type: ip
+        alb.ingress.kubernetes.io/backend-protocol: HTTP
+        alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
 
     persistence:
       enabled: true

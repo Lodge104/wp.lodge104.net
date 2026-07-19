@@ -28,5 +28,16 @@ inputs = merge(
     intra_subnets   = ["10.0.201.0/24", "10.0.202.0/24", "10.0.203.0/24"]
 
     single_nat_gateway = false # one NAT per AZ for full HA
+
+    # Additional tag (on top of the common role tags) required by the AWS
+    # Load Balancer Controller to auto-discover subnets for this cluster.
+    public_subnet_tags = merge(
+      local.common.locals.public_subnet_tags,
+      { "kubernetes.io/cluster/lodge104-${local.env}" = "shared" }
+    )
+    private_subnet_tags = merge(
+      local.common.locals.private_subnet_tags,
+      { "kubernetes.io/cluster/lodge104-${local.env}" = "shared" }
+    )
   }
 )

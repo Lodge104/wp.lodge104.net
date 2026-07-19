@@ -51,6 +51,25 @@ dependency "elasticache" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
+dependency "acm" {
+  config_path = "../acm"
+
+  mock_outputs = {
+    acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+}
+
+# No outputs needed from eks-addons; this dependency only enforces apply
+# ordering so the AWS Load Balancer Controller exists before the WordPress
+# Ingress (which relies on it) is created.
+dependency "eks_addons" {
+  config_path = "../eks-addons"
+
+  mock_outputs                            = {}
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+}
+
 terraform {
   source = "${get_repo_root()}//_modules/helm-release"
 }
@@ -102,6 +121,9 @@ inputs = {
   rds_master_user_secret_arn = dependency.rds.outputs.cluster_master_user_secret[0].secret_arn
   rds_secret_name             = "lodge104-${local.env}-rds-credentials"
 
+  expose_ingress_hostname = true
+  ingress_name            = local.common.locals.release_name
+
   values = [
     local.common.locals.base_values,
     <<-YAML
@@ -135,6 +157,12 @@ inputs = {
       pdb:
         create: true
         minAvailable: 1
+    YAML
+    ,
+    <<-YAML
+      ingress:
+        annotations:
+          alb.ingress.kubernetes.io/certificate-arn: "${dependency.acm.outputs.acm_certificate_arn}"
     YAML
   ]
 }

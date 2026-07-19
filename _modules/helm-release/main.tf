@@ -12,6 +12,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.32"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
+    }
   }
 }
 
@@ -65,4 +69,26 @@ resource "helm_release" "this" {
   values = var.values
 
   depends_on = [kubernetes_namespace_v1.this, kubernetes_secret_v1.rds_credentials]
+}
+
+# The load balancer backing a Kubernetes Ingress (e.g. an ALB provisioned by
+# the AWS Load Balancer Controller) isn't necessarily ready the instant helm
+# reports the release as installed -- give it time to actually provision
+# before reading its hostname back.
+resource "time_sleep" "wait_for_ingress" {
+  count = var.expose_ingress_hostname ? 1 : 0
+
+  depends_on      = [helm_release.this]
+  create_duration = "120s"
+}
+
+data "kubernetes_ingress_v1" "this" {
+  count = var.expose_ingress_hostname ? 1 : 0
+
+  metadata {
+    name      = var.ingress_name
+    namespace = var.namespace
+  }
+
+  depends_on = [time_sleep.wait_for_ingress]
 }

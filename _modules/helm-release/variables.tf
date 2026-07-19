@@ -71,3 +71,15 @@ variable "rds_secret_key" {
   type        = string
   default     = "mariadb-password"
 }
+
+variable "expose_ingress_hostname" {
+  description = "Read back the hostname of a Kubernetes Ingress created by this release (e.g. an ALB DNS name) once it's provisioned, exposed via the `ingress_hostname` output."
+  type        = bool
+  default     = false
+}
+
+variable "ingress_name" {
+  description = "Name of the Kubernetes Ingress resource to read back when `expose_ingress_hostname` is true. Required when `expose_ingress_hostname` is set."
+  type        = string
+  default     = null
+}

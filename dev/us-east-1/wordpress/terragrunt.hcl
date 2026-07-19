@@ -175,6 +175,7 @@ inputs = {
         annotations:
           alb.ingress.kubernetes.io/certificate-arn: "${dependency.acm.outputs.acm_certificate_arn}"
           alb.ingress.kubernetes.io/security-groups: "${dependency.alb_security_group.outputs.id}"
+          alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
     YAML
     ,
     <<-YAML

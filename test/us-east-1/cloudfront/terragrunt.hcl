@@ -43,7 +43,7 @@ inputs = merge(
         # handshake to a custom origin validates the cert against the
         # origin domain name, which the ALB's own auto-generated hostname
         # is never covered by.
-        domain_name = "origin-test.lodge104.net"
+        domain_name = "origin.test.lodge104.net"
         custom_origin_config = {
           http_port              = 80
           https_port             = 443

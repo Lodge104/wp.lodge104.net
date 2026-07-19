@@ -58,7 +58,7 @@ inputs = merge(
       # instead of the ALB's own auto-generated domain (which the cert
       # doesn't cover, causing TLS handshake failures / 502s from CloudFront).
       origin_alb = {
-        name = "origin-dev"
+        name = "origin.dev"
         type = "A"
         alias = {
           name    = dependency.wordpress.outputs.ingress_hostname

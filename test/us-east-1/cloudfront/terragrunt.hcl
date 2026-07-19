@@ -19,15 +19,6 @@ dependency "acm" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
-dependency "wordpress" {
-  config_path = "../wordpress"
-
-  mock_outputs = {
-    ingress_hostname = "mock-alb-123456789.us-east-1.elb.amazonaws.com"
-  }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
-}
-
 terraform {
   source = "tfr:///terraform-aws-modules/cloudfront/aws?version=3.4.1"
 }
@@ -47,7 +38,12 @@ inputs = merge(
 
     origin = {
       alb = {
-        domain_name = dependency.wordpress.outputs.ingress_hostname
+        # A DNS alias to the ALB, covered by the *.lodge104.net ACM
+        # wildcard cert (see route53/terragrunt.hcl) – CloudFront's HTTPS
+        # handshake to a custom origin validates the cert against the
+        # origin domain name, which the ALB's own auto-generated hostname
+        # is never covered by.
+        domain_name = "origin-test.lodge104.net"
         custom_origin_config = {
           http_port              = 80
           https_port             = 443

@@ -35,6 +35,12 @@ locals {
         alb.ingress.kubernetes.io/target-type: ip
         alb.ingress.kubernetes.io/backend-protocol: HTTP
         alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+        # ALB health checks hit the pod directly over plain HTTP with no
+        # X-Forwarded-Proto header. Since wordpressScheme is https, WordPress
+        # issues a 301 canonical redirect to https for that request, which
+        # would otherwise mark the target unhealthy (expected 200). Accept
+        # the redirect as a pass.
+        alb.ingress.kubernetes.io/success-codes: "200-399"
 
     persistence:
       enabled: true

@@ -44,7 +44,7 @@ generate "helm_provider" {
   if_exists = "overwrite_terragrunt"
   contents  = <<-EOF
     data "aws_eks_cluster" "eks_addons" {
-      name = "lodge104-${local.env}"
+      name = "${dependency.eks.outputs.cluster_name}"
     }
 
     provider "helm" {
@@ -55,7 +55,7 @@ generate "helm_provider" {
         exec = {
           api_version = "client.authentication.k8s.io/v1beta1"
           command     = "aws"
-          args        = ["eks", "get-token", "--cluster-name", "lodge104-${local.env}", "--region", "${local.region}"]
+          args        = ["eks", "get-token", "--cluster-name", "${dependency.eks.outputs.cluster_name}", "--region", "${local.region}"]
         }
       }
     }
@@ -67,7 +67,7 @@ generate "helm_provider" {
       exec {
         api_version = "client.authentication.k8s.io/v1beta1"
         command     = "aws"
-        args        = ["eks", "get-token", "--cluster-name", "lodge104-${local.env}", "--region", "${local.region}"]
+        args        = ["eks", "get-token", "--cluster-name", "${dependency.eks.outputs.cluster_name}", "--region", "${local.region}"]
       }
     }
   EOF

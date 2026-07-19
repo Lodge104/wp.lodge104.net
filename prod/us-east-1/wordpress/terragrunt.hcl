@@ -199,10 +199,10 @@ inputs = {
 
       initContainers:
         - name: reconcile-db-password
-          image: docker.io/bitnami/os-shell:12
+          image: docker.io/busybox:1.36
           imagePullPolicy: IfNotPresent
           command:
-            - /bin/bash
+            - /bin/sh
             - -ec
             - |
               WP_CONFIG=/bitnami/wordpress/wp-config.php

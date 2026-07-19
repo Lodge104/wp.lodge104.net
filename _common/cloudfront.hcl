@@ -1,4 +1,21 @@
 # Common CloudFront defaults – override in each env's terragrunt.hcl as needed.
+#
+# Caching strategy tuned for WordPress (bitnami/wordpress served behind the
+# ALB origin, no server-side full-page cache plugin installed):
+#   - Default behavior handles front-end HTML/REST/comment-post traffic. It
+#     must allow write methods (WordPress uses POST for comments,
+#     admin-ajax fallbacks and the REST API) and must NOT share cached pages
+#     between anonymous and logged-in/commenting visitors, so it forwards
+#     the auth/state cookies WordPress relies on (wildcards match the
+#     per-install hashed cookie names) and forwards query strings (preview,
+#     search, pagination links all depend on them). default_ttl is left at
+#     0 so CloudFront only caches when WordPress/a plugin explicitly sends
+#     Cache-Control/Expires headers; max_ttl caps how long such a response
+#     can be reused.
+#   - wp-admin/wp-login/xmlrpc are always dynamic and session-specific, so
+#     they're fully excluded from caching and forward everything to origin.
+#   - Static assets (uploads, core/theme/plugin files) are safe to cache
+#     aggressively since they're content-addressed by path/filename.
 locals {
   price_class = "PriceClass_100" # US, Canada, Europe
 
@@ -6,21 +23,89 @@ locals {
   http_version        = "http2and3"
   wait_for_deployment = false
 
-  # Default cache behaviour
+  # Default cache behaviour – front-end pages, comments, REST API.
   default_cache_behavior = {
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD"]
 
     min_ttl     = 0
-    default_ttl = 3600
+    default_ttl = 0
     max_ttl     = 86400
+
+    use_forwarded_values = true
+    query_string         = true
+    cookies_forward      = "whitelist"
+    cookies_whitelisted_names = [
+      "comment_author_*",
+      "wordpress_logged_in_*",
+      "wordpress_no_cache",
+      "wordpress_test_cookie",
+      "wp-settings-*",
+    ]
+  }
+
+  # No-cache passthrough for always-dynamic, session-specific WordPress
+  # endpoints – never share these responses between visitors.
+  wordpress_no_cache_behavior = {
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD"]
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+
+    use_forwarded_values = true
+    query_string         = true
+    cookies_forward      = "all"
+  }
+
+  # Long-TTL caching for static, content-addressed WordPress assets.
+  wordpress_static_asset_behavior = {
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD", "OPTIONS"]
+
+    min_ttl     = 0
+    default_ttl = 86400
+    max_ttl     = 31536000
 
     use_forwarded_values = true
     query_string         = false
     cookies_forward      = "none"
   }
+
+  # Ordered cache behaviors implementing the strategy above. target_origin_id
+  # is set to "alb" to match the origin key used in every env's
+  # cloudfront/terragrunt.hcl; merge in a different target_origin_id here if
+  # that ever changes.
+  ordered_cache_behavior = concat(
+    [
+      for path_pattern in [
+        "/wp-admin/*",
+        "/wp-login.php",
+        "/xmlrpc.php",
+        ] : merge(local.wordpress_no_cache_behavior, {
+        path_pattern     = path_pattern
+        target_origin_id = "alb"
+      })
+    ],
+    [
+      for path_pattern in [
+        "/wp-content/uploads/*",
+        "/wp-content/themes/*",
+        "/wp-content/plugins/*",
+        "/wp-includes/*",
+        ] : merge(local.wordpress_static_asset_behavior, {
+        path_pattern     = path_pattern
+        target_origin_id = "alb"
+      })
+    ]
+  )
 
   viewer_certificate = {
     minimum_protocol_version = "TLSv1.2_2021"

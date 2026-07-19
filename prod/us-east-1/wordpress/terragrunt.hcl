@@ -42,6 +42,15 @@ dependency "efs" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
+dependency "elasticache" {
+  config_path = "../elasticache"
+
+  mock_outputs = {
+    cluster_address = "lodge104-prod.xxxxxx.cfg.use1.cache.amazonaws.com"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+}
+
 terraform {
   source = "${get_repo_root()}//_modules/helm-release"
 }
@@ -109,6 +118,12 @@ inputs = {
         user: lodge104admin
         database: lodge104
         existingSecret: lodge104-prod-rds-credentials
+
+      externalCache:
+        host: "${dependency.elasticache.outputs.cluster_address}"
+        port: 11211
+
+      wordpressConfigureCache: true
 
       ingress:
         hostname: lodge104.net

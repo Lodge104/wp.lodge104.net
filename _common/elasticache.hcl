@@ -1,20 +1,23 @@
-# Common ElastiCache (Valkey) defaults – override in each env's terragrunt.hcl as needed.
-# Valkey is the open-source Redis-compatible engine supported by AWS ElastiCache.
+# Common ElastiCache (Memcached) defaults – override in each env's terragrunt.hcl as needed.
+# Memcached (not Valkey/Redis) is used so the Bitnami WordPress chart's native
+# externalCache + W3 Total Cache integration can talk to it directly (that
+# integration speaks the memcached wire protocol, not Redis).
 locals {
-  engine         = "valkey"
-  engine_version = "7.2"
+  engine         = "memcached"
+  engine_version = "1.6.22"
 
-  maintenance_window       = "sun:05:00-sun:06:00"
-  snapshot_window          = "04:00-05:00"
-  snapshot_retention_limit = 5
+  create_cluster           = true
+  create_replication_group = false
 
-  at_rest_encryption_enabled = true
+  maintenance_window = "sun:05:00-sun:06:00"
+
+  # Memcached doesn't support at-rest encryption or snapshots (Redis-only
+  # features); in-transit encryption IS supported from 1.6.12+.
   transit_encryption_enabled = true
-  transit_encryption_mode    = "required"
 
-  apply_immediately  = true
+  apply_immediately          = true
   auto_minor_version_upgrade = true
 
-  # Parameter group family for Valkey 7
-  parameter_group_family = "valkey7"
+  # Parameter group family for Memcached 1.6
+  parameter_group_family = "memcached1.6"
 }

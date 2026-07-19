@@ -22,6 +22,15 @@ dependency "vpc" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
+dependency "eks" {
+  config_path = "../eks"
+
+  mock_outputs = {
+    node_security_group_id = "sg-00000000000000001"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/elasticache/aws?version=1.3.0"
 }
@@ -29,15 +38,19 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    replication_group_id = "lodge104-${local.env}"
+    cluster_id = "lodge104-${local.env}"
 
-    cluster_mode_enabled       = false
-    automatic_failover_enabled = true
-    num_cache_clusters         = 2 # primary + replica
-    node_type                  = "cache.t3.small"
+    num_cache_nodes = 2
+    node_type       = "cache.t3.small"
 
-    subnet_ids         = dependency.vpc.outputs.private_subnets
-    vpc_id             = dependency.vpc.outputs.vpc_id
-    security_group_ids = []
+    subnet_ids = dependency.vpc.outputs.private_subnets
+    vpc_id     = dependency.vpc.outputs.vpc_id
+
+    security_group_rules = {
+      eks_ingress = {
+        description                   = "Memcached from EKS nodes"
+        referenced_security_group_id = dependency.eks.outputs.node_security_group_id
+      }
+    }
   }
 )

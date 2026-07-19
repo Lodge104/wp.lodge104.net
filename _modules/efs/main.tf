@@ -103,3 +103,37 @@ resource "kubernetes_storage_class_v1" "efs_sc" {
     directoryPerms   = "700"
   }
 }
+
+# ---------------------------------------------------------------------------
+# IAM role for the aws-efs-csi-driver addon, granted via EKS Pod Identity.
+# The addon's controller pods (service account "efs-csi-controller-sa" in
+# kube-system) otherwise have no AWS credentials and fail to call the EFS API
+# ("no EC2 IMDS role found") when provisioning access points.
+# ---------------------------------------------------------------------------
+data "aws_iam_policy_document" "efs_csi_pod_identity_trust" {
+  statement {
+    actions = ["sts:AssumeRole", "sts:TagSession"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["pods.eks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "efs_csi" {
+  name               = "${var.name}-efs-csi-driver"
+  assume_role_policy = data.aws_iam_policy_document.efs_csi_pod_identity_trust.json
+}
+
+resource "aws_iam_role_policy_attachment" "efs_csi" {
+  role       = aws_iam_role.efs_csi.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
+}
+
+resource "aws_eks_pod_identity_association" "efs_csi" {
+  cluster_name    = var.eks_cluster_name
+  namespace       = "kube-system"
+  service_account = "efs-csi-controller-sa"
+  role_arn        = aws_iam_role.efs_csi.arn
+}

@@ -53,3 +53,21 @@ variable "values" {
   type        = list(string)
   default     = []
 }
+
+variable "rds_master_user_secret_arn" {
+  description = "ARN of the AWS Secrets Manager secret holding the RDS master user credentials (the rds-aurora module's `cluster_master_user_secret[0].secret_arn` output, populated when `manage_master_user_password = true`). When set, a Kubernetes Secret named `rds_secret_name` is created in `namespace` with the password under key `rds_secret_key`, removing the need to create it manually."
+  type        = string
+  default     = null
+}
+
+variable "rds_secret_name" {
+  description = "Name of the Kubernetes Secret to create from the RDS master user secret. Required when `rds_master_user_secret_arn` is set."
+  type        = string
+  default     = null
+}
+
+variable "rds_secret_key" {
+  description = "Key within the created Kubernetes Secret's data map that holds the password."
+  type        = string
+  default     = "mariadb-password"
+}

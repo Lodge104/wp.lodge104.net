@@ -22,6 +22,15 @@ dependency "vpc" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
+dependency "eks" {
+  config_path = "../eks"
+
+  mock_outputs = {
+    node_security_group_id = "sg-00000000000000001"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/rds-aurora/aws?version=9.3.0"
 }
@@ -47,6 +56,13 @@ inputs = merge(
     subnets                = dependency.vpc.outputs.private_subnets
     vpc_id                 = dependency.vpc.outputs.vpc_id
     vpc_security_group_ids = []
+
+    security_group_rules = {
+      eks_ingress = {
+        description              = "MySQL from EKS nodes"
+        source_security_group_id = dependency.eks.outputs.node_security_group_id
+      }
+    }
 
     deletion_protection = true
     skip_final_snapshot = false

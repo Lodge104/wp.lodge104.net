@@ -26,6 +26,9 @@ dependency "rds" {
 
   mock_outputs = {
     cluster_endpoint = "lodge104-test.cluster-xxxxxxxxxxxx.us-east-1.rds.amazonaws.com"
+    cluster_master_user_secret = [
+      { secret_arn = "arn:aws:secretsmanager:us-east-1:000000000000:secret:mock-xxxxxx" }
+    ]
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
@@ -65,6 +68,17 @@ generate "helm_provider" {
         }
       }
     }
+
+    provider "kubernetes" {
+      host                   = data.aws_eks_cluster.wordpress.endpoint
+      cluster_ca_certificate = base64decode(data.aws_eks_cluster.wordpress.certificate_authority[0].data)
+
+      exec {
+        api_version = "client.authentication.k8s.io/v1beta1"
+        command     = "aws"
+        args        = ["eks", "get-token", "--cluster-name", "lodge104-${local.env}", "--region", "${local.region}"]
+      }
+    }
   EOF
 }
 
@@ -75,6 +89,9 @@ inputs = {
   chart_version = local.common.locals.chart_version
   namespace     = local.common.locals.namespace
   atomic        = true
+
+  rds_master_user_secret_arn = dependency.rds.outputs.cluster_master_user_secret[0].secret_arn
+  rds_secret_name             = "lodge104-${local.env}-rds-credentials"
 
   values = [
     local.common.locals.base_values,
@@ -88,7 +105,7 @@ inputs = {
       externalDatabase:
         host: "${dependency.rds.outputs.cluster_endpoint}"
         port: 3306
-        user: lodge104
+        user: lodge104admin
         database: lodge104
         existingSecret: lodge104-test-rds-credentials
 

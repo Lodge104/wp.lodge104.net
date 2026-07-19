@@ -39,11 +39,11 @@ generate "helm_provider" {
     }
 
     provider "helm" {
-      kubernetes {
+      kubernetes = {
         host                   = data.aws_eks_cluster.eks_addons.endpoint
         cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks_addons.certificate_authority[0].data)
 
-        exec {
+        exec = {
           api_version = "client.authentication.k8s.io/v1beta1"
           command     = "aws"
           args        = ["eks", "get-token", "--cluster-name", "lodge104-${local.env}", "--region", "${local.region}"]

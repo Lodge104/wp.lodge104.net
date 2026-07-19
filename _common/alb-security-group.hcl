@@ -9,7 +9,7 @@ locals {
       from_port   = 443
       to_port     = 443
       ip_protocol = "tcp"
-      description = "HTTPS from CloudFront's origin-facing IP ranges"
+      description = "HTTPS from CloudFront origin-facing IP ranges"
     }
   }
 

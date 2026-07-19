@@ -38,7 +38,7 @@ inputs = merge(
   local.common.locals,
   {
     name        = "lodge104-${local.env}-alb-cloudfront-only"
-    description = "WordPress ALB ingress restricted to CloudFront's origin-facing IP ranges"
+    description = "WordPress ALB ingress restricted to CloudFront origin-facing IP ranges"
     vpc_id      = dependency.vpc.outputs.vpc_id
 
     ingress_rules = {

@@ -1,8 +1,10 @@
 locals {
-  common   = read_terragrunt_config("${get_repo_root()}/_common/acm.hcl")
-  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  common       = read_terragrunt_config("${get_repo_root()}/_common/acm.hcl")
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env = local.env_vars.locals.env
+  env     = local.env_vars.locals.env
+  domain  = local.project_vars.locals.domain
 }
 
 include "root" {
@@ -17,11 +19,10 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    # Prod uses the apex domain + wildcard
-    domain_name = "lodge104.net"
+    domain_name = local.domain
     subject_alternative_names = [
-      "*.lodge104.net",
-      "www.lodge104.net",
+      "*.${local.domain}",
+      "www.${local.domain}",
     ]
   }
 )

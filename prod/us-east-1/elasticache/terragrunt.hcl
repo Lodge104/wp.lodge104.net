@@ -1,10 +1,12 @@
 locals {
-  common      = read_terragrunt_config("${get_repo_root()}/_common/elasticache.hcl")
-  env_vars    = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  common       = read_terragrunt_config("${get_repo_root()}/_common/elasticache.hcl")
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env    = local.env_vars.locals.env
-  region = local.region_vars.locals.aws_region
+  env     = local.env_vars.locals.env
+  region  = local.region_vars.locals.aws_region
+  project = local.project_vars.locals.project_name
 }
 
 include "root" {
@@ -38,17 +40,17 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    cluster_id = "lodge104-${local.env}"
+    cluster_id = "${local.project}-${local.env}"
 
-    num_cache_nodes = 3
-    node_type       = "cache.r6g.large"
+    num_cache_nodes = local.env_vars.locals.elasticache.num_cache_nodes
+    node_type       = local.env_vars.locals.elasticache.node_type
 
     subnet_ids = dependency.vpc.outputs.private_subnets
     vpc_id     = dependency.vpc.outputs.vpc_id
 
     security_group_rules = {
       eks_ingress = {
-        description                   = "Memcached from EKS nodes"
+        description                  = "Memcached from EKS nodes"
         referenced_security_group_id = dependency.eks.outputs.node_security_group_id
       }
     }

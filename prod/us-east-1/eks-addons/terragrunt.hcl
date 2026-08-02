@@ -1,10 +1,12 @@
 locals {
-  common      = read_terragrunt_config("${get_repo_root()}/_common/eks-addons.hcl")
-  env_vars    = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  common       = read_terragrunt_config("${get_repo_root()}/_common/eks-addons.hcl")
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env    = local.env_vars.locals.env
-  region = local.region_vars.locals.aws_region
+  env     = local.env_vars.locals.env
+  region  = local.region_vars.locals.aws_region
+  project = local.project_vars.locals.project_name
 }
 
 include "root" {
@@ -16,10 +18,10 @@ dependency "eks" {
   config_path = "../eks"
 
   mock_outputs = {
-    cluster_name      = "lodge104-prod"
+    cluster_name      = "${local.project}-${local.env}"
     cluster_endpoint  = "https://example.eks.amazonaws.com"
     cluster_version   = "1.36"
-    oidc_provider_arn = "arn:aws:iam::000000000000:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/00000000000000000000000000000000"
+    oidc_provider_arn = "arn:aws:iam::000000000000:oidc-provider/oidc.eks.${local.region}.amazonaws.com/id/00000000000000000000000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }

@@ -1,10 +1,14 @@
 locals {
-  common      = read_terragrunt_config("${get_repo_root()}/_common/wordpress.hcl")
-  env_vars    = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  common       = read_terragrunt_config("${get_repo_root()}/_common/wordpress.hcl")
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env    = local.env_vars.locals.env
-  region = local.region_vars.locals.aws_region
+  env       = local.env_vars.locals.env
+  region    = local.region_vars.locals.aws_region
+  project   = local.project_vars.locals.project_name
+  domain    = local.project_vars.locals.domain
+  wp_config = local.env_vars.locals.wordpress
 }
 
 include "root" {
@@ -16,7 +20,7 @@ dependency "eks" {
   config_path = "../eks"
 
   mock_outputs = {
-    cluster_name = "lodge104-test"
+    cluster_name = "${local.project}-${local.env}"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
@@ -25,9 +29,9 @@ dependency "rds" {
   config_path = "../rds"
 
   mock_outputs = {
-    cluster_endpoint = "lodge104-test.cluster-xxxxxxxxxxxx.us-east-1.rds.amazonaws.com"
+    cluster_endpoint = "${local.project}-${local.env}.cluster-xxxxxxxxxxxx.${local.region}.rds.amazonaws.com"
     cluster_master_user_secret = [
-      { secret_arn = "arn:aws:secretsmanager:us-east-1:000000000000:secret:mock-xxxxxx" }
+      { secret_arn = "arn:aws:secretsmanager:${local.region}:000000000000:secret:mock-xxxxxx" }
     ]
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
@@ -46,7 +50,7 @@ dependency "elasticache" {
   config_path = "../elasticache"
 
   mock_outputs = {
-    cluster_address = "lodge104-test.xxxxxx.cfg.use1.cache.amazonaws.com"
+    cluster_address = "${local.project}-${local.env}.xxxxxx.cfg.use1.cache.amazonaws.com"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
@@ -55,7 +59,7 @@ dependency "acm" {
   config_path = "../acm"
 
   mock_outputs = {
-    acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+    acm_certificate_arn = "arn:aws:acm:${local.region}:123456789012:certificate/00000000-0000-0000-0000-000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
@@ -128,7 +132,7 @@ inputs = {
   atomic        = true
 
   rds_master_user_secret_arn = dependency.rds.outputs.cluster_master_user_secret[0].secret_arn
-  rds_secret_name             = "lodge104-${local.env}-rds-credentials"
+  rds_secret_name             = "${local.project}-${local.env}-rds-credentials"
 
   expose_ingress_hostname = true
   ingress_name            = local.common.locals.release_name
@@ -136,18 +140,18 @@ inputs = {
   values = [
     local.common.locals.base_values,
     <<-YAML
-      wordpressBlogName: "Lodge104 (Test)"
-      wordpressHost: test.lodge104.net
+      wordpressBlogName: "${local.wp_config.blog_name}"
+      wordpressHost: ${local.env}.${local.domain}
 
-      replicaCount: 2
-      resourcesPreset: medium
+      replicaCount: ${local.wp_config.replica_count}
+      resourcesPreset: ${local.wp_config.resources_preset}
 
       externalDatabase:
         host: "${dependency.rds.outputs.cluster_endpoint}"
         port: 3306
-        user: lodge104admin
-        database: lodge104
-        existingSecret: lodge104-test-rds-credentials
+        user: ${local.project}admin
+        database: ${local.project}
+        existingSecret: ${local.project}-${local.env}-rds-credentials
 
       externalCache:
         host: "${dependency.elasticache.outputs.cluster_address}"
@@ -156,16 +160,16 @@ inputs = {
       wordpressConfigureCache: true
 
       ingress:
-        hostname: test.lodge104.net
+        hostname: ${local.env}.${local.domain}
 
       persistence:
-        size: 10Gi
+        size: ${local.wp_config.persistence_size}
 
-      podAntiAffinityPreset: soft
+      podAntiAffinityPreset: ${local.wp_config.pod_anti_affinity_preset}
 
       pdb:
-        create: true
-        minAvailable: 1
+        create: ${local.wp_config.pdb_create}
+        minAvailable: ${local.wp_config.pdb_min_available}
     YAML
     ,
     <<-YAML
@@ -175,11 +179,11 @@ inputs = {
           alb.ingress.kubernetes.io/security-groups: "${dependency.alb_security_group.outputs.id}"
           alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
         # CloudFront sends the origin's own domain name as the Host header
-        # (not the viewer-facing test.lodge104.net) for custom origins, so
-        # the ALB needs a matching rule for it too or it falls through to
-        # the default 404 fixed-response.
+        # (not the viewer-facing ${local.env}.${local.domain}) for custom origins, so
+        # the ALB needs a matching rule for it too or it falls through to the
+        # default 404 fixed-response.
         extraHosts:
-          - name: origin.test.lodge104.net
+          - name: origin.${local.env}.${local.domain}
             path: /
     YAML
     ,
@@ -194,7 +198,7 @@ inputs = {
       extraVolumes:
         - name: rds-credentials-check
           secret:
-            secretName: lodge104-${local.env}-rds-credentials
+            secretName: ${local.project}-${local.env}-rds-credentials
 
       initContainers:
         - name: reconcile-db-password

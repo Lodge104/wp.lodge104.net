@@ -20,7 +20,7 @@ dependency "vpc" {
     vpc_id          = "vpc-00000000000000000"
     private_subnets = ["subnet-00000000000000001", "subnet-00000000000000002", "subnet-00000000000000003"]
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 dependency "eks" {
@@ -30,7 +30,7 @@ dependency "eks" {
     cluster_name           = "${local.project}-${local.env}"
     node_security_group_id = "sg-00000000000000001"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 terraform {

@@ -22,7 +22,7 @@ dependency "eks" {
   mock_outputs = {
     cluster_name = "${local.project}-${local.env}"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 dependency "rds" {
@@ -34,7 +34,7 @@ dependency "rds" {
       { secret_arn = "arn:aws:secretsmanager:${local.region}:000000000000:secret:mock-xxxxxx" }
     ]
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 dependency "efs" {
@@ -43,7 +43,7 @@ dependency "efs" {
   mock_outputs = {
     storage_class_name = "efs-sc"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 dependency "elasticache" {
@@ -52,7 +52,7 @@ dependency "elasticache" {
   mock_outputs = {
     cluster_address = "${local.project}-${local.env}.xxxxxx.cfg.use1.cache.amazonaws.com"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 dependency "acm" {
@@ -61,7 +61,7 @@ dependency "acm" {
   mock_outputs = {
     acm_certificate_arn = "arn:aws:acm:${local.region}:123456789012:certificate/00000000-0000-0000-0000-000000000000"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 dependency "alb_security_group" {
@@ -70,7 +70,7 @@ dependency "alb_security_group" {
   mock_outputs = {
     id = "sg-00000000000000000"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 # No outputs needed from eks-addons; this dependency only enforces apply
@@ -80,7 +80,7 @@ dependency "eks_addons" {
   config_path = "../eks-addons"
 
   mock_outputs                            = {}
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 terraform {

@@ -22,7 +22,7 @@ dependency "cloudfront" {
     cloudfront_distribution_domain_name    = "d111111abcdef8.cloudfront.net"
     cloudfront_distribution_hosted_zone_id = "Z2FDTNDATAQYW2"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 dependency "wordpress" {
@@ -31,7 +31,7 @@ dependency "wordpress" {
   mock_outputs = {
     ingress_hostname = "mock-alb-123456789.${local.region}.elb.amazonaws.com"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
 terraform {

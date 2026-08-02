@@ -154,6 +154,12 @@ resource "terraform_data" "efs_csi_controller_restart" {
 
   provisioner "local-exec" {
     command = <<-EOT
+      set -e
+      KUBECONFIG=$(mktemp)
+      export KUBECONFIG
+      trap 'rm -f "$KUBECONFIG"' EXIT
+      aws eks update-kubeconfig --name "${var.eks_cluster_name}" --region "${var.region}" >/dev/null
+
       if kubectl get deployment efs-csi-controller -n kube-system >/dev/null 2>&1; then
         echo "Restarting efs-csi-controller to pick up Pod Identity credentials..."
         kubectl rollout restart deployment efs-csi-controller -n kube-system

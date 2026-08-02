@@ -41,6 +41,7 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
+    zone_id = "Z02518842QX1X2K88785A"
     records = {
       cloudfront_ipv4 = {
         name = local.env

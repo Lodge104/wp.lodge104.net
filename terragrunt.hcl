@@ -7,13 +7,18 @@
 # evaluated in the root file's own directory context and cannot traverse into
 # child env/region trees. Each child module reads those files in its own locals.
 
+locals {
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
+  project_name = local.project_vars.locals.project_name
+}
+
 # ---------------------------------------------------------------------------
 # Remote state – all envs share one S3 bucket, keys are scoped by path.
 # ---------------------------------------------------------------------------
 remote_state {
   backend = "s3"
   config = {
-    bucket       = "lodge104-terraform-state"
+    bucket       = "${local.project_name}-terraform-state"
     key          = "${path_relative_to_include()}/terraform.tfstate"
     region       = "us-east-1"
     encrypt      = true

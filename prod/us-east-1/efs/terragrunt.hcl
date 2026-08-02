@@ -1,9 +1,11 @@
 locals {
-  env_vars    = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env    = local.env_vars.locals.env
-  region = local.region_vars.locals.aws_region
+  env     = local.env_vars.locals.env
+  region  = local.region_vars.locals.aws_region
+  project = local.project_vars.locals.project_name
 }
 
 include "root" {
@@ -25,7 +27,7 @@ dependency "eks" {
   config_path = "../eks"
 
   mock_outputs = {
-    cluster_name           = "lodge104-prod"
+    cluster_name           = "${local.project}-${local.env}"
     node_security_group_id = "sg-00000000000000001"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
@@ -36,13 +38,12 @@ terraform {
 }
 
 inputs = {
-  name                       = "lodge104-${local.env}"
+  name                       = "${local.project}-${local.env}"
   vpc_id                     = dependency.vpc.outputs.vpc_id
   subnet_ids                 = dependency.vpc.outputs.private_subnets
   eks_cluster_name           = dependency.eks.outputs.cluster_name
   eks_node_security_group_id = dependency.eks.outputs.node_security_group_id
   region                     = local.region
 
-  throughput_mode  = "elastic"
-  performance_mode = "generalPurpose"
+  throughput_mode = "elastic"
 }

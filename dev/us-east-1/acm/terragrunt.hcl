@@ -1,8 +1,10 @@
 locals {
-  common   = read_terragrunt_config("${get_repo_root()}/_common/acm.hcl")
-  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  common       = read_terragrunt_config("${get_repo_root()}/_common/acm.hcl")
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env = local.env_vars.locals.env
+  env     = local.env_vars.locals.env
+  domain  = local.project_vars.locals.domain
 }
 
 include "root" {
@@ -18,7 +20,7 @@ inputs = merge(
   local.common.locals,
   {
     # Use a subdomain per environment; prod uses apex + wildcard only.
-    domain_name               = "${local.env}.lodge104.net"
-    subject_alternative_names = ["*.${local.env}.lodge104.net"]
+    domain_name               = "${local.env}.${local.domain}"
+    subject_alternative_names = ["*.${local.env}.${local.domain}"]
   }
 )

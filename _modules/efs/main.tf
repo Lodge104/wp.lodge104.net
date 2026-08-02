@@ -137,3 +137,37 @@ resource "aws_eks_pod_identity_association" "efs_csi" {
   service_account = "efs-csi-controller-sa"
   role_arn        = aws_iam_role.efs_csi.arn
 }
+
+# ---------------------------------------------------------------------------
+# Restart the EFS CSI driver controller after the Pod Identity association is
+# created or updated. The EKS managed addon is created by the cluster module,
+# which runs before this module, so the controller pods may already be running
+# without credentials when the association is finally created. A rollout
+# restart forces the pods to re-inject the Pod Identity credentials so they
+# can provision access points for PVCs backed by the efs-sc StorageClass.
+# ---------------------------------------------------------------------------
+resource "terraform_data" "efs_csi_controller_restart" {
+  triggers_replace = [
+    aws_eks_pod_identity_association.efs_csi.id,
+    aws_eks_pod_identity_association.efs_csi.role_arn,
+  ]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      KUBECONFIG=$(mktemp)
+      export KUBECONFIG
+      trap 'rm -f "$KUBECONFIG"' EXIT
+      aws eks update-kubeconfig --name "${var.eks_cluster_name}" --region "${var.region}" >/dev/null
+
+      if kubectl get deployment efs-csi-controller -n kube-system >/dev/null 2>&1; then
+        echo "Restarting efs-csi-controller to pick up Pod Identity credentials..."
+        kubectl rollout restart deployment efs-csi-controller -n kube-system
+      else
+        echo "efs-csi-controller deployment not found; skipping restart."
+      fi
+    EOT
+  }
+
+  depends_on = [aws_eks_pod_identity_association.efs_csi]
+}

@@ -1,10 +1,13 @@
 locals {
-  common      = read_terragrunt_config("${get_repo_root()}/_common/vpc.hcl")
-  env_vars    = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  common       = read_terragrunt_config("${get_repo_root()}/_common/vpc.hcl")
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env    = local.env_vars.locals.env
-  region = local.region_vars.locals.aws_region
+  env         = local.env_vars.locals.env
+  region      = local.region_vars.locals.aws_region
+  project     = local.project_vars.locals.project_name
+  cidr_prefix = local.env_vars.locals.vpc_cidr
 }
 
 include "root" {
@@ -19,13 +22,13 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    name = "lodge104-${local.env}"
-    cidr = "10.10.0.0/16"
+    name = "${local.project}-${local.env}"
+    cidr = local.cidr_prefix
 
     azs             = ["${local.region}a", "${local.region}b", "${local.region}c"]
-    private_subnets = ["10.10.1.0/24", "10.10.2.0/24", "10.10.3.0/24"]
-    public_subnets  = ["10.10.101.0/24", "10.10.102.0/24", "10.10.103.0/24"]
-    intra_subnets   = ["10.10.201.0/24", "10.10.202.0/24", "10.10.203.0/24"]
+    private_subnets = [cidrsubnet(local.cidr_prefix, 8, 1), cidrsubnet(local.cidr_prefix, 8, 2), cidrsubnet(local.cidr_prefix, 8, 3)]
+    public_subnets  = [cidrsubnet(local.cidr_prefix, 8, 101), cidrsubnet(local.cidr_prefix, 8, 102), cidrsubnet(local.cidr_prefix, 8, 103)]
+    intra_subnets   = [cidrsubnet(local.cidr_prefix, 8, 201), cidrsubnet(local.cidr_prefix, 8, 202), cidrsubnet(local.cidr_prefix, 8, 203)]
 
     # Cost optimisation: single NAT in dev
     single_nat_gateway = true
@@ -34,11 +37,11 @@ inputs = merge(
     # Load Balancer Controller to auto-discover subnets for this cluster.
     public_subnet_tags = merge(
       local.common.locals.public_subnet_tags,
-      { "kubernetes.io/cluster/lodge104-${local.env}" = "shared" }
+      { "kubernetes.io/cluster/${local.project}-${local.env}" = "shared" }
     )
     private_subnet_tags = merge(
       local.common.locals.private_subnet_tags,
-      { "kubernetes.io/cluster/lodge104-${local.env}" = "shared" }
+      { "kubernetes.io/cluster/${local.project}-${local.env}" = "shared" }
     )
   }
 )

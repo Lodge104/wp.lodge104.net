@@ -1,8 +1,12 @@
 locals {
-  common   = read_terragrunt_config("${get_repo_root()}/_common/route53.hcl")
-  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  common       = read_terragrunt_config("${get_repo_root()}/_common/route53.hcl")
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env = local.env_vars.locals.env
+  env            = local.env_vars.locals.env
+  domain         = local.project_vars.locals.domain
+  alb_zone_id    = local.region_vars.locals.alb_hosted_zone_id
 }
 
 include "root" {
@@ -38,7 +42,7 @@ inputs = merge(
   {
     records = {
       cloudfront_ipv4 = {
-        name = "dev"
+        name = local.env
         type = "A"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
@@ -46,7 +50,7 @@ inputs = merge(
         }
       }
       cloudfront_ipv6 = {
-        name = "dev"
+        name = local.env
         type = "AAAA"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
@@ -54,15 +58,15 @@ inputs = merge(
         }
       }
       # CloudFront origin domain – lets CloudFront connect to the ALB over
-      # HTTPS using a hostname covered by the *.lodge104.net ACM cert
+      # HTTPS using a hostname covered by the *.${local.domain} ACM cert
       # instead of the ALB's own auto-generated domain (which the cert
       # doesn't cover, causing TLS handshake failures / 502s from CloudFront).
       origin_alb = {
-        name = "origin.dev"
+        name = "origin.${local.env}"
         type = "A"
         alias = {
           name    = dependency.wordpress.outputs.ingress_hostname
-          zone_id = local.common.locals.alb_hosted_zone_id
+          zone_id = local.alb_zone_id
         }
       }
     }

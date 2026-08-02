@@ -1,8 +1,10 @@
 locals {
-  common   = read_terragrunt_config("${get_repo_root()}/_common/alb-security-group.hcl")
-  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  common       = read_terragrunt_config("${get_repo_root()}/_common/alb-security-group.hcl")
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env = local.env_vars.locals.env
+  env     = local.env_vars.locals.env
+  project = local.project_vars.locals.project_name
 
   # CloudFront's global "origin-facing" managed prefix list ID is
   # account/partition-specific, so resolve it via the AWS CLI at plan time
@@ -37,7 +39,7 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    name        = "lodge104-${local.env}-alb-cloudfront-only"
+    name        = "${local.project}-${local.env}-alb-cloudfront-only"
     description = "WordPress ALB ingress restricted to CloudFront origin-facing IP ranges"
     vpc_id      = dependency.vpc.outputs.vpc_id
 

@@ -1,8 +1,11 @@
 locals {
-  common   = read_terragrunt_config("${get_repo_root()}/_common/cloudfront.hcl")
-  env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  common       = read_terragrunt_config("${get_repo_root()}/_common/cloudfront.hcl")
+  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env = local.env_vars.locals.env
+  env     = local.env_vars.locals.env
+  project = local.project_vars.locals.project_name
+  domain  = local.project_vars.locals.domain
 }
 
 include "root" {
@@ -26,9 +29,9 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    comment = "lodge104 ${local.env} distribution"
+    comment = "${local.project} ${local.env} distribution"
 
-    aliases = ["${local.env}.lodge104.net"]
+    aliases = ["${local.env}.${local.domain}"]
 
     viewer_certificate = {
       acm_certificate_arn      = dependency.acm.outputs.acm_certificate_arn
@@ -43,7 +46,7 @@ inputs = merge(
         # handshake to a custom origin validates the cert against the
         # origin domain name, which the ALB's own auto-generated hostname
         # is never covered by.
-        domain_name = "origin.dev.lodge104.net"
+        domain_name = "origin.${local.env}.${local.domain}"
         custom_origin_config = {
           http_port              = 80
           https_port             = 443

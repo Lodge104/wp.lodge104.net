@@ -1,0 +1,5 @@
+cloudfront_domain_name    = "d111111abcdef8.cloudfront.net"
+cloudfront_hosted_zone_id = "Z2FDTNDATAQYW2"
+db_endpoint               = "prod-wordpress.cluster-abcdefghijkl.us-east-1.rds.amazonaws.com"
+db_reader_endpoint        = "prod-wordpress.cluster-ro-abcdefghijkl.us-east-1.rds.amazonaws.com"
+cache_endpoint            = "prod-valkey.xxxxxx.use1.cache.amazonaws.com"

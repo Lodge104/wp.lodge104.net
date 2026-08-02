@@ -11,15 +11,15 @@ variable "environment" {
 }
 
 variable "domain_name" {
-  description = "Apex domain name. A Route 53 hosted zone for this domain must already exist."
+  description = "Public Route 53 zone name for this environment. The shared DNS config should delegate this zone from wp.lodge104.net."
   type        = string
-  default     = "lodge104.net"
+  default     = "prod.wp.lodge104.net"
 }
 
 variable "site_domain" {
-  description = "FQDN of the WordPress site (ACM cert, CloudFront alias, Route 53 record). Can be the apex domain or a subdomain."
+  description = "FQDN of the WordPress site (ACM cert and CloudFront alias). This should normally match the delegated environment zone apex."
   type        = string
-  default     = "prod.lodge104.net"
+  default     = "prod.wp.lodge104.net"
 }
 
 # ── Networking ──────────────────────────────────────────────────────────────────

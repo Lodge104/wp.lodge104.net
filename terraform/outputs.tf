@@ -8,6 +8,11 @@ output "cloudfront_domain" {
   value       = aws_cloudfront_distribution.wordpress.domain_name
 }
 
+output "cloudfront_hosted_zone_id" {
+  description = "CloudFront hosted zone ID for Route 53 alias records."
+  value       = aws_cloudfront_distribution.wordpress.hosted_zone_id
+}
+
 output "alb_dns_name" {
   description = "ALB DNS name. Access is restricted to CloudFront only — do not use directly."
   value       = aws_lb.wordpress.dns_name

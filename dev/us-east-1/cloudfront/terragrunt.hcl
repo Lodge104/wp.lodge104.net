@@ -33,7 +33,7 @@ inputs = merge(
   {
     comment = "${local.project} ${local.env} distribution"
 
-    aliases = ["${local.env}.${local.domain}"]
+    aliases = ["${local.env}.wp.${local.domain}"]
 
     viewer_certificate = {
       acm_certificate_arn      = dependency.acm.outputs.acm_certificate_arn
@@ -43,12 +43,12 @@ inputs = merge(
 
     origin = {
       alb = {
-        # A DNS alias to the ALB, covered by the *.${local.domain} ACM
+        # A DNS alias to the ALB, covered by the *.${local.env}.wp.${local.domain} ACM
         # wildcard cert (see route53/terragrunt.hcl) – CloudFront's HTTPS
         # handshake to a custom origin validates the cert against the
         # origin domain name, which the ALB's own auto-generated hostname
         # is never covered by.
-        domain_name = "origin.${local.env}.${local.domain}"
+        domain_name = "origin.${local.env}.wp.${local.domain}"
         custom_origin_config = {
           http_port              = 80
           https_port             = 443

@@ -34,6 +34,24 @@ dependency "wordpress" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "rds" {
+  config_path = "../rds"
+
+  mock_outputs = {
+    cluster_endpoint = "lodge104-prod.cluster-xxxxxxxxxxxx.us-east-1.rds.amazonaws.com"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
+dependency "elasticache" {
+  config_path = "../elasticache"
+
+  mock_outputs = {
+    cluster_address = "lodge104-prod.xxxxxx.cfg.use1.cache.amazonaws.com"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/route53/aws?version=6.5.0"
 }
@@ -41,12 +59,10 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    # Disambiguates the existing hosted zone lookup (create_zone = false) –
-    # without this the module's data source matches every zone in the
-    # account and fails with "multiple Route 53 Hosted Zones matched".
-    name = local.domain
+    create_zone = true
+    name        = "${local.env}.wp.${local.domain}"
     records = {
-      apex_ipv4 = {
+      cloudfront_ipv4 = {
         name = ""
         type = "A"
         alias = {
@@ -54,24 +70,8 @@ inputs = merge(
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
         }
       }
-      apex_ipv6 = {
+      cloudfront_ipv6 = {
         name = ""
-        type = "AAAA"
-        alias = {
-          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
-          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
-        }
-      }
-      www_ipv4 = {
-        name = "www"
-        type = "A"
-        alias = {
-          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
-          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
-        }
-      }
-      www_ipv6 = {
-        name = "www"
         type = "AAAA"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
@@ -79,7 +79,7 @@ inputs = merge(
         }
       }
       # CloudFront origin domain – lets CloudFront connect to the ALB over
-      # HTTPS using a hostname covered by the *.${local.domain} ACM cert
+      # HTTPS using a hostname covered by the *.${local.env}.wp.${local.domain} ACM cert
       # instead of the ALB's own auto-generated domain (which the cert
       # doesn't cover, causing TLS handshake failures / 502s from CloudFront).
       origin_alb = {
@@ -89,6 +89,18 @@ inputs = merge(
           name    = dependency.wordpress.outputs.ingress_hostname
           zone_id = local.alb_zone_id
         }
+      }
+      database = {
+        name    = "database"
+        type    = "CNAME"
+        ttl     = 300
+        records = [dependency.rds.outputs.cluster_endpoint]
+      }
+      cache = {
+        name    = "cache"
+        type    = "CNAME"
+        ttl     = 300
+        records = [dependency.elasticache.outputs.cluster_address]
       }
     }
   }

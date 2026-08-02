@@ -142,7 +142,7 @@ inputs = {
     local.common.locals.base_values,
     <<-YAML
       wordpressBlogName: "${local.wp_config.blog_name}"
-      wordpressHost: ${local.domain}
+      wordpressHost: prod.wp.${local.domain}
 
       replicaCount: ${local.wp_config.replica_count}
       resourcesPreset: ${local.wp_config.resources_preset}
@@ -161,10 +161,7 @@ inputs = {
       wordpressConfigureCache: true
 
       ingress:
-        hostname: ${local.domain}
-        extraHosts:
-          - name: www.${local.domain}
-            path: /
+        hostname: prod.wp.${local.domain}
 
       persistence:
         size: ${local.wp_config.persistence_size}
@@ -198,11 +195,11 @@ inputs = {
           alb.ingress.kubernetes.io/security-groups: "${dependency.alb_security_group.outputs.id}"
           alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
         # CloudFront sends the origin's own domain name as the Host header
-        # (not the viewer-facing ${local.domain}/www.${local.domain}) for custom
+        # (not the viewer-facing prod.wp.${local.domain}) for custom
         # origins, so the ALB needs a matching rule for it too or it falls
         # through to the default 404 fixed-response.
         extraHosts:
-          - name: origin.${local.domain}
+          - name: origin.prod.wp.${local.domain}
             path: /
     YAML
     ,

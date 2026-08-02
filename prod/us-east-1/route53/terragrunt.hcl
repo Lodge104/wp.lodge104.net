@@ -5,6 +5,7 @@ locals {
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
   env            = local.env_vars.locals.env
+  region         = local.region_vars.locals.aws_region
   domain         = local.project_vars.locals.domain
   alb_zone_id    = local.region_vars.locals.alb_hosted_zone_id
 }

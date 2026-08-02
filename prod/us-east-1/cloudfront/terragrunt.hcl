@@ -44,7 +44,7 @@ inputs = merge(
 
     origin = {
       alb = {
-        # A DNS alias to the ALB, covered by the *.lodge104.net ACM
+        # A DNS alias to the ALB, covered by the *.${local.domain} ACM
         # wildcard cert (see route53/terragrunt.hcl) – CloudFront's HTTPS
         # handshake to a custom origin validates the cert against the
         # origin domain name, which the ALB's own auto-generated hostname

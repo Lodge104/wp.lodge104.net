@@ -41,7 +41,10 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    zone_id = "Z02518842QX1X2K88785A"
+    # Disambiguates the existing hosted zone lookup (create_zone = false) –
+    # without this the module's data source matches every zone in the
+    # account and fails with "multiple Route 53 Hosted Zones matched".
+    name = local.domain
     records = {
       apex_ipv4 = {
         name = ""

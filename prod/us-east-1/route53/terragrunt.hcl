@@ -28,7 +28,7 @@ dependency "wordpress" {
   config_path = "../wordpress"
 
   mock_outputs = {
-    ingress_hostname = "mock-alb-123456789.us-east-1.elb.amazonaws.com"
+    ingress_hostname = "mock-alb-123456789.${local.region}.elb.amazonaws.com"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }

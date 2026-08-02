@@ -17,7 +17,7 @@ dependency "acm" {
   config_path = "../acm"
 
   mock_outputs = {
-    acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+    acm_certificate_arn = "arn:aws:acm:${local.region}:123456789012:certificate/00000000-0000-0000-0000-000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }

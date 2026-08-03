@@ -19,9 +19,9 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    domain_name = "prod.wp.${local.domain}"
+    domain_name = "${local.env}.wp.${local.domain}"
     subject_alternative_names = [
-      "*.prod.wp.${local.domain}",
+      "*.${local.env}.wp.${local.domain}",
     ]
   }
 )

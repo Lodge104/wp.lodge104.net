@@ -15,7 +15,7 @@ dependency "prod_zone" {
   config_path = "${get_repo_root()}/prod/us-east-1/route53"
 
   mock_outputs = {
-    route53_zone_name_servers = [
+    name_servers = [
       "ns-111.awsdns-01.net",
       "ns-222.awsdns-02.org",
       "ns-333.awsdns-03.co.uk",
@@ -29,7 +29,7 @@ dependency "dev_zone" {
   config_path = "${get_repo_root()}/dev/us-east-1/route53"
 
   mock_outputs = {
-    route53_zone_name_servers = [
+    name_servers = [
       "ns-555.awsdns-01.net",
       "ns-666.awsdns-02.org",
       "ns-777.awsdns-03.co.uk",
@@ -43,7 +43,7 @@ dependency "test_zone" {
   config_path = "${get_repo_root()}/test/us-east-1/route53"
 
   mock_outputs = {
-    route53_zone_name_servers = [
+    name_servers = [
       "ns-999.awsdns-01.net",
       "ns-000.awsdns-02.org",
       "ns-121.awsdns-03.co.uk",
@@ -66,19 +66,19 @@ inputs = merge(
         name    = "prod"
         type    = "NS"
         ttl     = 300
-        records = dependency.prod_zone.outputs.route53_zone_name_servers
+        records = dependency.prod_zone.outputs.name_servers
       }
       dev_delegation = {
         name    = "dev"
         type    = "NS"
         ttl     = 300
-        records = dependency.dev_zone.outputs.route53_zone_name_servers
+        records = dependency.dev_zone.outputs.name_servers
       }
       test_delegation = {
         name    = "test"
         type    = "NS"
         ttl     = 300
-        records = dependency.test_zone.outputs.route53_zone_name_servers
+        records = dependency.test_zone.outputs.name_servers
       }
     }
   }

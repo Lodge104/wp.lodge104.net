@@ -15,7 +15,7 @@ dependency "wp_zone" {
   config_path = "../route53-wp"
 
   mock_outputs = {
-    route53_zone_name_servers = [
+    name_servers = [
       "ns-123.awsdns-01.net",
       "ns-456.awsdns-02.org",
       "ns-789.awsdns-03.co.uk",
@@ -38,7 +38,7 @@ inputs = merge(
         name    = "wp"
         type    = "NS"
         ttl     = 300
-        records = dependency.wp_zone.outputs.route53_zone_name_servers
+        records = dependency.wp_zone.outputs.name_servers
       }
     }
   }

@@ -22,7 +22,7 @@ dependency "prod_zone" {
       "ns-444.awsdns-04.com",
     ]
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply", "destroy"]
 }
 
 dependency "dev_zone" {
@@ -36,7 +36,7 @@ dependency "dev_zone" {
       "ns-888.awsdns-04.com",
     ]
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply", "destroy"]
 }
 
 dependency "test_zone" {
@@ -50,7 +50,7 @@ dependency "test_zone" {
       "ns-131.awsdns-04.com",
     ]
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply", "destroy"]
 }
 
 terraform {

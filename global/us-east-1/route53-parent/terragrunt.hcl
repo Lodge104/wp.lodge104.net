@@ -22,7 +22,7 @@ dependency "wp_zone" {
       "ns-012.awsdns-04.com",
     ]
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply", "destroy"]
 }
 
 terraform {

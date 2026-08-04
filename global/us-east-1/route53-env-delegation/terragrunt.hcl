@@ -21,6 +21,7 @@ dependency "prod_zone" {
       "ns-333.awsdns-03.co.uk",
       "ns-444.awsdns-04.com",
     ]
+    dnssec_signing_key_ds_record = "12345 13 2 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply", "destroy"]
 }
@@ -35,6 +36,7 @@ dependency "dev_zone" {
       "ns-777.awsdns-03.co.uk",
       "ns-888.awsdns-04.com",
     ]
+    dnssec_signing_key_ds_record = "12345 13 2 BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply", "destroy"]
 }
@@ -49,6 +51,7 @@ dependency "test_zone" {
       "ns-121.awsdns-03.co.uk",
       "ns-131.awsdns-04.com",
     ]
+    dnssec_signing_key_ds_record = "12345 13 2 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply", "destroy"]
 }
@@ -68,17 +71,35 @@ inputs = merge(
         ttl     = 300
         records = dependency.prod_zone.outputs.name_servers
       }
+      prod_ds = {
+        name    = "prod"
+        type    = "DS"
+        ttl     = 300
+        records = [dependency.prod_zone.outputs.dnssec_signing_key_ds_record]
+      }
       dev_delegation = {
         name    = "dev"
         type    = "NS"
         ttl     = 300
         records = dependency.dev_zone.outputs.name_servers
       }
+      dev_ds = {
+        name    = "dev"
+        type    = "DS"
+        ttl     = 300
+        records = [dependency.dev_zone.outputs.dnssec_signing_key_ds_record]
+      }
       test_delegation = {
         name    = "test"
         type    = "NS"
         ttl     = 300
         records = dependency.test_zone.outputs.name_servers
+      }
+      test_ds = {
+        name    = "test"
+        type    = "DS"
+        ttl     = 300
+        records = [dependency.test_zone.outputs.dnssec_signing_key_ds_record]
       }
     }
   }

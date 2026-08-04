@@ -18,8 +18,9 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    create_zone = true
-    name        = "wp.${local.domain}"
-    records     = {}
+    create_zone   = true
+    name          = "wp.${local.domain}"
+    enable_dnssec = true
+    records       = {}
   }
 )

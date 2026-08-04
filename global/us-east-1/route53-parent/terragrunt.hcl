@@ -15,12 +15,13 @@ dependency "wp_zone" {
   config_path = "../route53-wp"
 
   mock_outputs = {
-    name_servers = [
+    name_servers              = [
       "ns-123.awsdns-01.net",
       "ns-456.awsdns-02.org",
       "ns-789.awsdns-03.co.uk",
       "ns-012.awsdns-04.com",
     ]
+    dnssec_signing_key_ds_record = "12345 13 2 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "apply", "destroy"]
 }
@@ -39,6 +40,12 @@ inputs = merge(
         type    = "NS"
         ttl     = 300
         records = dependency.wp_zone.outputs.name_servers
+      }
+      wp_ds = {
+        name    = "wp"
+        type    = "DS"
+        ttl     = 300
+        records = [dependency.wp_zone.outputs.dnssec_signing_key_ds_record]
       }
     }
   }

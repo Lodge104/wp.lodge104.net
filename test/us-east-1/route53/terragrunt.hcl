@@ -45,7 +45,6 @@ inputs = merge(
     name        = "${local.env}.wp.${local.domain}"
     records = {
       cloudfront_ipv4 = {
-        name = "${local.env}.wp.${local.domain}"
         type = "A"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
@@ -53,7 +52,6 @@ inputs = merge(
         }
       }
       cloudfront_ipv6 = {
-        name = "${local.env}.wp.${local.domain}"
         type = "AAAA"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name

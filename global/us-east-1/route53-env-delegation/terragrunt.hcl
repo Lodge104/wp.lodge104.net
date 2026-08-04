@@ -75,7 +75,7 @@ inputs = merge(
         name    = "prod"
         type    = "DS"
         ttl     = 300
-        records = [dependency.prod_zone.outputs.dnssec_signing_key_ds_record]
+        records = compact([try(dependency.prod_zone.outputs.dnssec_signing_key_ds_record, null)])
       }
       dev_delegation = {
         name    = "dev"
@@ -87,7 +87,7 @@ inputs = merge(
         name    = "dev"
         type    = "DS"
         ttl     = 300
-        records = [dependency.dev_zone.outputs.dnssec_signing_key_ds_record]
+        records = compact([try(dependency.dev_zone.outputs.dnssec_signing_key_ds_record, null)])
       }
       test_delegation = {
         name    = "test"
@@ -99,7 +99,7 @@ inputs = merge(
         name    = "test"
         type    = "DS"
         ttl     = 300
-        records = [dependency.test_zone.outputs.dnssec_signing_key_ds_record]
+        records = compact([try(dependency.test_zone.outputs.dnssec_signing_key_ds_record, null)])
       }
     }
   }

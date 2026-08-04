@@ -45,7 +45,7 @@ inputs = merge(
         name    = "wp"
         type    = "DS"
         ttl     = 300
-        records = [dependency.wp_zone.outputs.dnssec_signing_key_ds_record]
+        records = compact([try(dependency.wp_zone.outputs.dnssec_signing_key_ds_record, null)])
       }
     }
   }

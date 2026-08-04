@@ -41,33 +41,32 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    # Disambiguates the existing hosted zone lookup (create_zone = false) –
-    # without this the module's data source matches every zone in the
-    # account and fails with "multiple Route 53 Hosted Zones matched".
-    name = local.domain
+    create_zone   = true
+    enable_dnssec = true
+    name          = "${local.env}.wp.${local.domain}"
     records = {
       cloudfront_ipv4 = {
-        name = local.env
-        type = "A"
+        full_name = "${local.env}.wp.${local.domain}"
+        type      = "A"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
         }
       }
       cloudfront_ipv6 = {
-        name = local.env
-        type = "AAAA"
+        full_name = "${local.env}.wp.${local.domain}"
+        type      = "AAAA"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
         }
       }
       # CloudFront origin domain – lets CloudFront connect to the ALB over
-      # HTTPS using a hostname covered by the *.${local.domain} ACM cert
+      # HTTPS using a hostname covered by the *.${local.env}.wp.${local.domain} ACM cert
       # instead of the ALB's own auto-generated domain (which the cert
       # doesn't cover, causing TLS handshake failures / 502s from CloudFront).
       origin_alb = {
-        name = "origin.${local.env}"
+        name = "origin"
         type = "A"
         alias = {
           name    = dependency.wordpress.outputs.ingress_hostname

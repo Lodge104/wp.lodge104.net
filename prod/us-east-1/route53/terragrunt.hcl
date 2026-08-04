@@ -41,45 +41,28 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    # Disambiguates the existing hosted zone lookup (create_zone = false) –
-    # without this the module's data source matches every zone in the
-    # account and fails with "multiple Route 53 Hosted Zones matched".
-    name = local.domain
+    create_zone   = true
+    enable_dnssec = true
+    name          = "${local.env}.wp.${local.domain}"
     records = {
-      apex_ipv4 = {
-        name = ""
-        type = "A"
+      cloudfront_ipv4 = {
+        full_name = "${local.env}.wp.${local.domain}"
+        type      = "A"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
         }
       }
-      apex_ipv6 = {
-        name = ""
-        type = "AAAA"
-        alias = {
-          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
-          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
-        }
-      }
-      www_ipv4 = {
-        name = "www"
-        type = "A"
-        alias = {
-          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
-          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
-        }
-      }
-      www_ipv6 = {
-        name = "www"
-        type = "AAAA"
+      cloudfront_ipv6 = {
+        full_name = "${local.env}.wp.${local.domain}"
+        type      = "AAAA"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
         }
       }
       # CloudFront origin domain – lets CloudFront connect to the ALB over
-      # HTTPS using a hostname covered by the *.${local.domain} ACM cert
+      # HTTPS using a hostname covered by the *.${local.env}.wp.${local.domain} ACM cert
       # instead of the ALB's own auto-generated domain (which the cert
       # doesn't cover, causing TLS handshake failures / 502s from CloudFront).
       origin_alb = {

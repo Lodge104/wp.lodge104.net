@@ -19,8 +19,7 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    # Use a subdomain per environment; prod uses apex + wildcard only.
-    domain_name               = "${local.env}.${local.domain}"
-    subject_alternative_names = ["*.${local.env}.${local.domain}"]
+    domain_name               = "${local.env}.wp.${local.domain}"
+    subject_alternative_names = ["*.${local.env}.wp.${local.domain}"]
   }
 )

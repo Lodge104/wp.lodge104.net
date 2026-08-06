@@ -100,7 +100,7 @@ resource "kubernetes_storage_class_v1" "efs_sc" {
   parameters = {
     provisioningMode = "efs-ap"
     fileSystemId     = aws_efs_file_system.this.id
-    directoryPerms   = "700"
+    directoryPerms   = "777"
   }
 }
 

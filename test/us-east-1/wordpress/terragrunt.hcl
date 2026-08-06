@@ -192,10 +192,10 @@ inputs = {
           alb.ingress.kubernetes.io/certificate-arn: "${dependency.acm.outputs.acm_certificate_arn}"
           alb.ingress.kubernetes.io/security-groups: "${dependency.alb_security_group.outputs.id}"
           alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
-        # CloudFront sends the origin's own domain name as the Host header
-        # (not the viewer-facing ${local.env}.wp.${local.domain}) for custom origins, so
-        # the ALB needs a matching rule for it too or it falls through to the
-        # default 404 fixed-response.
+        # CloudFront forwards the viewer Host header for dynamic Multisite
+        # behaviors, but some cache behaviors (for example static assets)
+        # still use the origin domain as Host, so the ALB needs a matching
+        # rule for origin.${local.env}.wp.${local.domain}.
         extraHosts:
           - name: origin.${local.env}.wp.${local.domain}
             path: /

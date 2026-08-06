@@ -33,7 +33,8 @@ inputs = merge(
   {
     comment = "${local.project} ${local.env} distribution"
 
-    aliases = ["${local.env}.wp.${local.domain}"]
+    # Multisite "store" site shares this distribution/origin.
+    aliases = ["${local.env}.wp.${local.domain}", "store.${local.env}.wp.${local.domain}"]
 
     viewer_certificate = {
       acm_certificate_arn      = dependency.acm.outputs.acm_certificate_arn

@@ -61,6 +61,23 @@ inputs = merge(
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
         }
       }
+      # Multisite "store" site, served by the same CloudFront distribution.
+      store_cloudfront_ipv4 = {
+        full_name = "store.${local.env}.wp.${local.domain}"
+        type      = "A"
+        alias = {
+          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
+          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
+        }
+      }
+      store_cloudfront_ipv6 = {
+        full_name = "store.${local.env}.wp.${local.domain}"
+        type      = "AAAA"
+        alias = {
+          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
+          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
+        }
+      }
       # CloudFront origin domain – lets CloudFront connect to the ALB over
       # HTTPS using a hostname covered by the *.${local.env}.wp.${local.domain} ACM cert
       # instead of the ALB's own auto-generated domain (which the cert

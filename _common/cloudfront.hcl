@@ -36,7 +36,16 @@ locals {
 
     use_forwarded_values = true
     query_string         = true
-    cookies_forward      = "whitelist"
+    # Forwarding Host lets WordPress Multisite (subdomain install) resolve
+    # which network site to serve. Without this, CloudFront overrides the
+    # Host header sent to the ALB origin with the origin's own domain name
+    # for every request, so every site would resolve to the primary blog.
+    # This also folds Host into the cache key (legacy forwarded_values
+    # behavior), which is the desired trade-off here: it keeps each
+    # site's cached responses separate instead of collapsing them
+    # together across aliases.
+    headers         = ["Host"]
+    cookies_forward = "whitelist"
     cookies_whitelisted_names = [
       "comment_author_*",
       "wordpress_logged_in_*",
@@ -60,7 +69,10 @@ locals {
 
     use_forwarded_values = true
     query_string         = true
-    cookies_forward      = "all"
+    # See default_cache_behavior above -- wp-admin/wp-login/xmlrpc are
+    # also per-site and need the real Host header to reach the right blog.
+    headers         = ["Host"]
+    cookies_forward = "all"
   }
 
   # Long-TTL caching for static, content-addressed WordPress assets.

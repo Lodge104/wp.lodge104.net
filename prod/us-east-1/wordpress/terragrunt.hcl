@@ -144,6 +144,22 @@ inputs = {
       wordpressBlogName: "${local.wp_config.blog_name}"
       wordpressHost: ${local.env}.wp.${local.domain}
 
+      # Multisite (subdomain install): the network's primary domain stays
+      # ${local.env}.wp.${local.domain}. Additional network sites (e.g. the
+      # store.* site) are added afterwards from wp-admin and can use any
+      # domain the proxy/ingress routes to this release -- they don't need
+      # to be literal subdomains of DOMAIN_CURRENT_SITE. In production the
+      # store site uses store.${local.domain} directly (its DNS is managed
+      # outside this repository).
+      wordpressExtraConfigContent: |
+        define('WP_ALLOW_MULTISITE', true);
+        define('MULTISITE', true);
+        define('SUBDOMAIN_INSTALL', true);
+        define('DOMAIN_CURRENT_SITE', '${local.env}.wp.${local.domain}');
+        define('PATH_CURRENT_SITE', '/');
+        define('SITE_ID_CURRENT_SITE', 1);
+        define('BLOG_ID_CURRENT_SITE', 1);
+
       replicaCount: ${local.wp_config.replica_count}
       resourcesPreset: ${local.wp_config.resources_preset}
 
@@ -194,12 +210,18 @@ inputs = {
           alb.ingress.kubernetes.io/certificate-arn: "${dependency.acm.outputs.acm_certificate_arn}"
           alb.ingress.kubernetes.io/security-groups: "${dependency.alb_security_group.outputs.id}"
           alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
-        # CloudFront sends the origin's own domain name as the Host header
-        # (not the viewer-facing ${local.env}.wp.${local.domain}) for custom
-        # origins, so the ALB needs a matching rule for it too or it falls
-        # through to the default 404 fixed-response.
+        # CloudFront forwards the viewer Host header for dynamic Multisite
+        # behaviors, but some cache behaviors (for example static assets)
+        # still use the origin domain as Host, so the ALB needs a matching
+        # rule for origin.${local.env}.wp.${local.domain}.
         extraHosts:
           - name: origin.${local.env}.wp.${local.domain}
+            path: /
+          # Multisite "store" site. Uses the bare store.${local.domain}
+          # (not store.${local.env}.wp.${local.domain}) -- its DNS is
+          # managed outside this repository, but the proxy still needs to
+          # route it to this release.
+          - name: store.${local.domain}
             path: /
     YAML
     ,

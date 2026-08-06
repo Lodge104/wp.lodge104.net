@@ -143,6 +143,20 @@ inputs = {
       wordpressBlogName: "${local.wp_config.blog_name}"
       wordpressHost: ${local.env}.wp.${local.domain}
 
+      # Multisite (subdomain install): the network's primary domain stays
+      # ${local.env}.wp.${local.domain}. Additional network sites (e.g. the
+      # store.* site) are added afterwards from wp-admin and can use any
+      # domain the proxy/ingress routes to this release -- they don't need
+      # to be literal subdomains of DOMAIN_CURRENT_SITE.
+      wordpressExtraConfigContent: |
+        define('WP_ALLOW_MULTISITE', true);
+        define('MULTISITE', true);
+        define('SUBDOMAIN_INSTALL', true);
+        define('DOMAIN_CURRENT_SITE', '${local.env}.wp.${local.domain}');
+        define('PATH_CURRENT_SITE', '/');
+        define('SITE_ID_CURRENT_SITE', 1);
+        define('BLOG_ID_CURRENT_SITE', 1);
+
       replicaCount: ${local.wp_config.replica_count}
       resourcesPreset: ${local.wp_config.resources_preset}
 
@@ -184,6 +198,9 @@ inputs = {
         # default 404 fixed-response.
         extraHosts:
           - name: origin.${local.env}.wp.${local.domain}
+            path: /
+          # Multisite "store" site, routed to this same release/ingress.
+          - name: store.${local.env}.wp.${local.domain}
             path: /
     YAML
     ,

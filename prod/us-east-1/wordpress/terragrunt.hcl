@@ -148,6 +148,10 @@ inputs = {
   ses_smtp_password = dependency.ses.outputs.smtp_password
   ses_secret_name   = "${local.project}-${local.env}-ses-credentials"
 
+  create_wordpress_admin_credentials             = true
+  wordpress_admin_secret_name                    = "${local.project}-${local.env}-wordpress-admin-credentials"
+  wordpress_admin_secret_recovery_window_in_days = 7
+
   expose_ingress_hostname = true
   ingress_name            = local.common.locals.release_name
 

@@ -66,7 +66,7 @@ variable "rds_secret_name" {
   default     = null
 
   validation {
-    condition     = var.rds_master_user_secret_arn == null || coalesce(var.rds_secret_name, "") != ""
+    condition     = var.rds_master_user_secret_arn == null || try(trimspace(var.rds_secret_name) != "", false)
     error_message = "When rds_master_user_secret_arn is set, rds_secret_name must be a non-empty string."
   }
 }
@@ -109,6 +109,57 @@ variable "ses_secret_key" {
   default     = "smtp-password"
 }
 
+variable "create_wordpress_admin_credentials" {
+  description = "Generate an initial WordPress admin user (random username and password), store the credentials in an AWS Secrets Manager secret, and sync the password into a Kubernetes Secret referenced via the chart's `existingSecret` value."
+  type        = bool
+  default     = false
+}
+
+variable "wordpress_admin_secret_name" {
+  description = "Name for the AWS Secrets Manager secret and matching Kubernetes Secret holding the initial WordPress admin credentials. Must be a valid Kubernetes DNS subdomain because it is used unchanged for both resources. Required when `create_wordpress_admin_credentials` is true."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = !var.create_wordpress_admin_credentials || try(trimspace(var.wordpress_admin_secret_name) != "", false)
+    error_message = "When create_wordpress_admin_credentials is true, wordpress_admin_secret_name must be a non-empty string."
+  }
+
+  validation {
+    condition = !var.create_wordpress_admin_credentials || try(
+      length(var.wordpress_admin_secret_name) <= 253 && can(regex("^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$", var.wordpress_admin_secret_name)),
+      false
+    )
+    error_message = "When create_wordpress_admin_credentials is true, wordpress_admin_secret_name must be a valid Kubernetes DNS subdomain (lowercase alphanumeric, '-', or '.', start/end alphanumeric, max 253 chars)."
+  }
+}
+
+variable "wordpress_admin_username_prefix" {
+  description = "Prefix used when generating the random initial WordPress admin username (a random alphanumeric suffix is appended)."
+  type        = string
+  default     = "admin"
+}
+
+variable "wordpress_admin_password_length" {
+  description = "Length of the randomly generated initial WordPress admin password."
+  type        = number
+  default     = 24
+}
+
+variable "wordpress_admin_secret_recovery_window_in_days" {
+  description = "Number of days AWS Secrets Manager waits before permanently deleting the WordPress admin credentials secret after destruction. Set to 0 to delete immediately (useful for ephemeral/dev environments)."
+  type        = number
+  default     = 0
+
+  validation {
+    condition = var.wordpress_admin_secret_recovery_window_in_days == 0 || (
+      var.wordpress_admin_secret_recovery_window_in_days >= 7 &&
+      var.wordpress_admin_secret_recovery_window_in_days <= 30
+    )
+    error_message = "wordpress_admin_secret_recovery_window_in_days must be 0 or an integer from 7 through 30."
+  }
+}
+
 variable "expose_ingress_hostname" {
   description = "Read back the hostname of a Kubernetes Ingress created by this release (e.g. an ALB DNS name) once it's provisioned, exposed via the `ingress_hostname` output."
   type        = bool
@@ -121,7 +172,7 @@ variable "ingress_name" {
   default     = null
 
   validation {
-    condition     = !var.expose_ingress_hostname || coalesce(var.ingress_name, "") != ""
+    condition     = !var.expose_ingress_hostname || try(trimspace(var.ingress_name) != "", false)
     error_message = "When expose_ingress_hostname is true, ingress_name must be a non-empty string."
   }
 }

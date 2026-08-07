@@ -42,3 +42,20 @@ resource "aws_iam_user_policy" "send_email" {
 resource "aws_iam_access_key" "smtp" {
   user = aws_iam_user.smtp.name
 }
+
+# Persisted the same way RDS's master user password and the WordPress admin
+# password are -- an IAM access key's secret is only ever shown once, so
+# without this it only exists in Terraform state and the WordPress k8s Secret.
+resource "aws_secretsmanager_secret" "smtp_credentials" {
+  name                    = var.secret_name
+  description             = "SES SMTP credentials for the ${var.name} IAM user."
+  recovery_window_in_days = var.secret_recovery_window_in_days
+}
+
+resource "aws_secretsmanager_secret_version" "smtp_credentials" {
+  secret_id = aws_secretsmanager_secret.smtp_credentials.id
+  secret_string = jsonencode({
+    username = aws_iam_access_key.smtp.id
+    password = aws_iam_access_key.smtp.ses_smtp_password_v4
+  })
+}

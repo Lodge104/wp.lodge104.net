@@ -4,9 +4,10 @@ locals {
   region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env    = local.env_vars.locals.env
-  region = local.region_vars.locals.aws_region
-  domain = local.project_vars.locals.domain
+  env     = local.env_vars.locals.env
+  region  = local.region_vars.locals.aws_region
+  project = local.project_vars.locals.project_name
+  domain  = local.project_vars.locals.domain
 }
 
 include "root" {
@@ -19,7 +20,8 @@ terraform {
 }
 
 inputs = {
-  name   = "${local.common.locals.name}-${local.env}"
-  domain = local.domain
-  region = local.region
+  name        = "${local.common.locals.name}-${local.env}"
+  domain      = local.domain
+  region      = local.region
+  secret_name = "${local.project}-${local.env}-ses-credentials"
 }

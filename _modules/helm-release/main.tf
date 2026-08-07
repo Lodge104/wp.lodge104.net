@@ -16,6 +16,10 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.9"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -55,6 +59,63 @@ resource "kubernetes_secret_v1" "rds_credentials" {
   depends_on = [kubernetes_namespace_v1.this]
 }
 
+# Generate the initial WordPress admin user (username and password) with
+# random values, store them in AWS Secrets Manager, and sync the password
+# into a Kubernetes Secret the chart's top-level `existingSecret` value can
+# reference (must contain key "wordpress-password"). This removes the need
+# to set/know an admin password up front -- retrieve the generated
+# credentials from Secrets Manager after apply.
+resource "random_string" "wordpress_admin_username" {
+  count = var.create_wordpress_admin_credentials ? 1 : 0
+
+  length  = 8
+  special = false
+  upper   = false
+}
+
+resource "random_password" "wordpress_admin" {
+  count = var.create_wordpress_admin_credentials ? 1 : 0
+
+  length           = var.wordpress_admin_password_length
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>?"
+}
+
+resource "aws_secretsmanager_secret" "wordpress_admin" {
+  count = var.create_wordpress_admin_credentials ? 1 : 0
+
+  name                    = var.wordpress_admin_secret_name
+  description             = "Initial WordPress admin user credentials for the ${var.release_name} release."
+  recovery_window_in_days = var.wordpress_admin_secret_recovery_window_in_days
+}
+
+resource "aws_secretsmanager_secret_version" "wordpress_admin" {
+  count = var.create_wordpress_admin_credentials ? 1 : 0
+
+  secret_id = aws_secretsmanager_secret.wordpress_admin[0].id
+  secret_string = jsonencode({
+    username = "${var.wordpress_admin_username_prefix}-${random_string.wordpress_admin_username[0].result}"
+    password = random_password.wordpress_admin[0].result
+  })
+}
+
+resource "kubernetes_secret_v1" "wordpress_admin" {
+  count = var.create_wordpress_admin_credentials ? 1 : 0
+
+  metadata {
+    name      = var.wordpress_admin_secret_name
+    namespace = var.namespace
+  }
+
+  data = {
+    "wordpress-password" = random_password.wordpress_admin[0].result
+  }
+
+  type = "Opaque"
+
+  depends_on = [kubernetes_namespace_v1.this]
+}
+
 resource "helm_release" "this" {
   name             = var.release_name
   repository       = var.repository
@@ -66,9 +127,21 @@ resource "helm_release" "this" {
   wait             = var.wait
   atomic           = var.atomic
 
-  values = var.values
+  values = concat(
+    var.values,
+    var.create_wordpress_admin_credentials ? [
+      yamlencode({
+        wordpressUsername = jsondecode(aws_secretsmanager_secret_version.wordpress_admin[0].secret_string)["username"]
+        existingSecret    = kubernetes_secret_v1.wordpress_admin[0].metadata[0].name
+      })
+    ] : []
+  )
 
-  depends_on = [kubernetes_namespace_v1.this, kubernetes_secret_v1.rds_credentials]
+  depends_on = [
+    kubernetes_namespace_v1.this,
+    kubernetes_secret_v1.rds_credentials,
+    kubernetes_secret_v1.wordpress_admin,
+  ]
 }
 
 # The load balancer backing a Kubernetes Ingress (e.g. an ALB provisioned by

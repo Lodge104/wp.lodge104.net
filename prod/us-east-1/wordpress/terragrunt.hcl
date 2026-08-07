@@ -135,6 +135,10 @@ inputs = {
   rds_master_user_secret_arn = dependency.rds.outputs.cluster_master_user_secret[0].secret_arn
   rds_secret_name             = "${local.project}-${local.env}-rds-credentials"
 
+  create_wordpress_admin_credentials             = true
+  wordpress_admin_secret_name                    = "${local.project}-${local.env}-wordpress-admin-credentials"
+  wordpress_admin_secret_recovery_window_in_days = 7
+
   expose_ingress_hostname = true
   ingress_name            = local.common.locals.release_name
 

@@ -77,6 +77,41 @@ variable "rds_secret_key" {
   default     = "mariadb-password"
 }
 
+variable "create_wordpress_admin_credentials" {
+  description = "Generate an initial WordPress admin user (random username and password), store the credentials in an AWS Secrets Manager secret, and sync the password into a Kubernetes Secret referenced via the chart's `existingSecret` value."
+  type        = bool
+  default     = false
+}
+
+variable "wordpress_admin_secret_name" {
+  description = "Name for the AWS Secrets Manager secret (and matching Kubernetes Secret) holding the initial WordPress admin credentials. Required when `create_wordpress_admin_credentials` is true."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = !var.create_wordpress_admin_credentials || coalesce(var.wordpress_admin_secret_name, "") != ""
+    error_message = "When create_wordpress_admin_credentials is true, wordpress_admin_secret_name must be a non-empty string."
+  }
+}
+
+variable "wordpress_admin_username_prefix" {
+  description = "Prefix used when generating the random initial WordPress admin username (a random alphanumeric suffix is appended)."
+  type        = string
+  default     = "admin"
+}
+
+variable "wordpress_admin_password_length" {
+  description = "Length of the randomly generated initial WordPress admin password."
+  type        = number
+  default     = 24
+}
+
+variable "wordpress_admin_secret_recovery_window_in_days" {
+  description = "Number of days AWS Secrets Manager waits before permanently deleting the WordPress admin credentials secret after destruction. Set to 0 to delete immediately (useful for ephemeral/dev environments)."
+  type        = number
+  default     = 0
+}
+
 variable "expose_ingress_hostname" {
   description = "Read back the hostname of a Kubernetes Ingress created by this release (e.g. an ALB DNS name) once it's provisioned, exposed via the `ingress_hostname` output."
   type        = bool

@@ -77,6 +77,30 @@ variable "rds_secret_key" {
   default     = "mariadb-password"
 }
 
+variable "ses_smtp_password" {
+  description = "SES SMTP password (e.g. the ses-smtp-user module's `smtp_password` output) to store in a Kubernetes Secret for the chart's `smtpExistingSecret` to reference. When set, a Kubernetes Secret named `ses_secret_name` is created in `namespace` with the password under key `ses_secret_key`."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "ses_secret_name" {
+  description = "Name of the Kubernetes Secret to create from the SES SMTP password. Required when `ses_smtp_password` is set."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.ses_smtp_password == null || coalesce(var.ses_secret_name, "") != ""
+    error_message = "When ses_smtp_password is set, ses_secret_name must be a non-empty string."
+  }
+}
+
+variable "ses_secret_key" {
+  description = "Key within the created Kubernetes Secret's data map that holds the SES SMTP password."
+  type        = string
+  default     = "smtp-password"
+}
+
 variable "expose_ingress_hostname" {
   description = "Read back the hostname of a Kubernetes Ingress created by this release (e.g. an ALB DNS name) once it's provisioned, exposed via the `ingress_hostname` output."
   type        = bool

@@ -55,6 +55,27 @@ resource "kubernetes_secret_v1" "rds_credentials" {
   depends_on = [kubernetes_namespace_v1.this]
 }
 
+# Optionally sync SES SMTP credentials (generated with terraform, e.g. by
+# the ses-smtp-user module) into a Kubernetes Secret the chart's
+# smtpExistingSecret can reference, instead of requiring it to be created
+# manually.
+resource "kubernetes_secret_v1" "ses_smtp_credentials" {
+  count = var.ses_smtp_password != null ? 1 : 0
+
+  metadata {
+    name      = var.ses_secret_name
+    namespace = var.namespace
+  }
+
+  data = {
+    (var.ses_secret_key) = var.ses_smtp_password
+  }
+
+  type = "Opaque"
+
+  depends_on = [kubernetes_namespace_v1.this]
+}
+
 resource "helm_release" "this" {
   name             = var.release_name
   repository       = var.repository
@@ -68,7 +89,7 @@ resource "helm_release" "this" {
 
   values = var.values
 
-  depends_on = [kubernetes_namespace_v1.this, kubernetes_secret_v1.rds_credentials]
+  depends_on = [kubernetes_namespace_v1.this, kubernetes_secret_v1.rds_credentials, kubernetes_secret_v1.ses_smtp_credentials]
 }
 
 # The load balancer backing a Kubernetes Ingress (e.g. an ALB provisioned by

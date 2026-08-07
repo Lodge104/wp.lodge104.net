@@ -103,7 +103,9 @@ resource "kubernetes_secret_v1" "wordpress_admin" {
   count = var.create_wordpress_admin_credentials ? 1 : 0
 
   metadata {
-    name      = var.wordpress_admin_secret_name
+    # AWS Secrets Manager names may contain characters (e.g. "/") that are
+    # invalid in Kubernetes resource names, so sanitize before reuse here.
+    name      = replace(var.wordpress_admin_secret_name, "/", "-")
     namespace = var.namespace
   }
 
@@ -131,7 +133,7 @@ resource "helm_release" "this" {
     var.values,
     var.create_wordpress_admin_credentials ? [
       yamlencode({
-        wordpressUsername = jsondecode(aws_secretsmanager_secret_version.wordpress_admin[0].secret_string)["username"]
+        wordpressUsername = "${var.wordpress_admin_username_prefix}-${random_string.wordpress_admin_username[0].result}"
         existingSecret    = kubernetes_secret_v1.wordpress_admin[0].metadata[0].name
       })
     ] : []

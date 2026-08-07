@@ -34,6 +34,11 @@ dependency "wordpress" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "zone" {
+  config_path  = "${get_repo_root()}/global/route53-dev"
+  skip_outputs = true
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/route53/aws?version=6.5.0"
 }

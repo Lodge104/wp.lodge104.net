@@ -83,6 +83,16 @@ dependency "eks_addons" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "ses" {
+  config_path = "../ses"
+
+  mock_outputs = {
+    smtp_username = "mock-smtp-username"
+    smtp_password = "mock-smtp-password"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 terraform {
   source = "${get_repo_root()}//_modules/helm-release"
 }
@@ -132,7 +142,10 @@ inputs = {
   atomic        = true
 
   rds_master_user_secret_arn = dependency.rds.outputs.cluster_master_user_secret[0].secret_arn
-  rds_secret_name             = "${local.project}-${local.env}-rds-credentials"
+  rds_secret_name            = "${local.project}-${local.env}-rds-credentials"
+
+  ses_smtp_password = dependency.ses.outputs.smtp_password
+  ses_secret_name   = "${local.project}-${local.env}-ses-credentials"
 
   create_wordpress_admin_credentials = true
   wordpress_admin_secret_name        = "${local.project}-${local.env}-wordpress-admin-credentials"
@@ -175,6 +188,16 @@ inputs = {
         port: 11211
 
       wordpressConfigureCache: true
+
+      # SES SMTP credentials, generated with terraform (see ../ses). The
+      # domain identity and its DKIM/SPF/DMARC DNS records are assumed to
+      # already be verified in this account.
+      smtpHost: "email-smtp.${local.region}.amazonaws.com"
+      smtpPort: "587"
+      smtpUser: "${dependency.ses.outputs.smtp_username}"
+      smtpProtocol: "tls"
+      smtpFromEmail: "wordpress@${local.domain}"
+      smtpExistingSecret: "${local.project}-${local.env}-ses-credentials"
 
       ingress:
         hostname: ${local.env}.wp.${local.domain}

@@ -96,7 +96,10 @@ variable "ses_secret_name" {
 }
 
 variable "ses_secret_key" {
-  description = "Key within the created Kubernetes Secret's data map that holds the SES SMTP password."
+  # The Bitnami WordPress chart's smtpExistingSecret must contain a key
+  # named "smtp-password" -- see
+  # https://github.com/bitnami/charts/tree/main/bitnami/wordpress#parameters
+  description = "Key within the created Kubernetes Secret's data map that holds the SES SMTP password. Must be \"smtp-password\" for the Bitnami WordPress chart's smtpExistingSecret to find it, unless the chart changes this requirement."
   type        = string
   default     = "smtp-password"
 }

@@ -24,8 +24,11 @@ resource "aws_iam_user" "smtp" {
 
 data "aws_iam_policy_document" "send_email" {
   statement {
-    effect    = "Allow"
-    actions   = ["ses:SendRawEmail", "ses:SendEmail"]
+    effect = "Allow"
+    # SMTP authentication only ever exercises ses:SendRawEmail; SendEmail is
+    # intentionally omitted to keep this IAM user scoped to what WordPress's
+    # SMTP integration actually needs.
+    actions   = ["ses:SendRawEmail"]
     resources = [local.identity_arn]
   }
 }

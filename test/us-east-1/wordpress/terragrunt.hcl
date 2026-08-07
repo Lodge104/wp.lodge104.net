@@ -87,7 +87,7 @@ dependency "ses" {
   config_path = "../ses"
 
   mock_outputs = {
-    smtp_username = "AKIAIOSFODNN7EXAMPLE"
+    smtp_username = "mock-smtp-username"
     smtp_password = "mock-smtp-password"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]

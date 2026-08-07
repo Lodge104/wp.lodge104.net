@@ -82,6 +82,11 @@ variable "ses_smtp_password" {
   type        = string
   default     = null
   sensitive   = true
+
+  validation {
+    condition     = var.ses_smtp_password == null || coalesce(var.ses_smtp_password, "") != ""
+    error_message = "When ses_smtp_password is set, it must be a non-empty string."
+  }
 }
 
 variable "ses_secret_name" {

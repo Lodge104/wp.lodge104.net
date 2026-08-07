@@ -12,6 +12,15 @@ include "root" {
   expose = true
 }
 
+dependency "zone" {
+  config_path = "${get_repo_root()}/global/route53-dev"
+
+  mock_outputs = {
+    id = "Z1111111111111"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/acm/aws?version=5.1.1"
 }
@@ -21,5 +30,6 @@ inputs = merge(
   {
     domain_name               = "${local.env}.wp.${local.domain}"
     subject_alternative_names = ["*.${local.env}.wp.${local.domain}"]
+    zone_id                   = dependency.zone.outputs.id
   }
 )

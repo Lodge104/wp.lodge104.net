@@ -12,6 +12,15 @@ include "root" {
   expose = true
 }
 
+dependency "zone" {
+  config_path = "${get_repo_root()}/global/route53-prod"
+
+  mock_outputs = {
+    id = "Z3333333333333"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/acm/aws?version=5.1.1"
 }
@@ -27,5 +36,6 @@ inputs = merge(
       # explicit SAN on this certificate.
       "store.${local.domain}",
     ]
+    zone_id = dependency.zone.outputs.id
   }
 )

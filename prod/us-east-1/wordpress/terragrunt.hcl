@@ -87,8 +87,8 @@ dependency "ses" {
   config_path = "../ses"
 
   mock_outputs = {
-    smtp_username = "mock-smtp-username"
-    smtp_password = "mock-smtp-password"
+    smtp_username               = "mock-smtp-username"
+    smtp_credentials_secret_arn = "arn:aws:secretsmanager:${local.region}:000000000000:secret:mock-ses-xxxxxx"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -145,8 +145,8 @@ inputs = {
   rds_master_user_secret_arn = dependency.rds.outputs.cluster_master_user_secret[0].secret_arn
   rds_secret_name            = "${local.project}-${local.env}-rds-credentials"
 
-  ses_smtp_password = dependency.ses.outputs.smtp_password
-  ses_secret_name   = "${local.project}-${local.env}-ses-credentials"
+  ses_smtp_credentials_secret_arn = dependency.ses.outputs.smtp_credentials_secret_arn
+  ses_secret_name                 = "${local.project}-${local.env}-ses-credentials"
 
   create_wordpress_admin_credentials             = true
   wordpress_admin_secret_name                    = "${local.project}-${local.env}-wordpress-admin-credentials"
@@ -168,14 +168,8 @@ inputs = {
       # to be literal subdomains of DOMAIN_CURRENT_SITE. In production the
       # store site uses store.${local.domain} directly (its DNS is managed
       # outside this repository).
-      wordpressExtraConfigContent: |
-        define('WP_ALLOW_MULTISITE', true);
-        define('MULTISITE', true);
-        define('SUBDOMAIN_INSTALL', true);
-        define('DOMAIN_CURRENT_SITE', '${local.env}.wp.${local.domain}');
-        define('PATH_CURRENT_SITE', '/');
-        define('SITE_ID_CURRENT_SITE', 1);
-        define('BLOG_ID_CURRENT_SITE', 1);
+      multisite:
+        host: ${local.env}.wp.${local.domain}
 
       replicaCount: ${local.wp_config.replica_count}
       resourcesPreset: ${local.wp_config.resources_preset}
@@ -248,8 +242,15 @@ inputs = {
           # (not store.${local.env}.wp.${local.domain}) -- its DNS is
           # managed outside this repository, but the proxy still needs to
           # route it to this release.
+          # pathType must be explicit: extraHosts defaults to ImplementationSpecific,
+          # which ALB treats as an exact "/" match instead of a prefix, so only the
+          # homepage would route and every asset path would fail.
           - name: store.${local.domain}
             path: /
+            pathType: Prefix
+          - name: ${local.domain}
+            path: /
+            pathType: Prefix
     YAML
     ,
     <<-YAML

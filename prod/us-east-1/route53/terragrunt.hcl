@@ -34,6 +34,11 @@ dependency "wordpress" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "zone" {
+  config_path  = "${get_repo_root()}/global/route53-prod"
+  skip_outputs = true
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/route53/aws?version=6.5.0"
 }
@@ -41,9 +46,7 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    create_zone   = true
-    enable_dnssec = true
-    name          = "${local.env}.wp.${local.domain}"
+    name = "${local.env}.wp.${local.domain}"
     records = {
       cloudfront_ipv4 = {
         full_name = "${local.env}.wp.${local.domain}"

@@ -163,6 +163,11 @@ resource "terraform_data" "efs_csi_controller_restart" {
       if kubectl get deployment efs-csi-controller -n kube-system >/dev/null 2>&1; then
         echo "Restarting efs-csi-controller to pick up Pod Identity credentials..."
         kubectl rollout restart deployment efs-csi-controller -n kube-system
+        # Block until the new pods are actually Ready, otherwise downstream
+        # modules (e.g. wordpress) can start creating PVCs while the
+        # controller is still mid-rollout and has no credentials yet,
+        # causing "unbound immediate PersistentVolumeClaims" errors.
+        kubectl rollout status deployment efs-csi-controller -n kube-system --timeout=180s
       else
         echo "efs-csi-controller deployment not found; skipping restart."
       fi

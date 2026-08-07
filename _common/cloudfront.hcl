@@ -88,7 +88,11 @@ locals {
 
     use_forwarded_values = true
     query_string         = false
-    cookies_forward      = "none"
+    # Without forwarding Host, CloudFront sends the origin's own domain name
+    # (origin.<env>.wp.<domain>) to the ALB instead of the real site host,
+    # which doesn't match the ingress's host-based routing rule and errors.
+    headers         = ["Host"]
+    cookies_forward = "none"
   }
 
   # Ordered cache behaviors implementing the strategy above. target_origin_id

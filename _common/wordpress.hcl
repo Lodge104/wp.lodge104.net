@@ -48,6 +48,26 @@ locals {
       accessModes:
         - ReadWriteMany
 
+    # The default readinessProbe targets the port named after wordpressScheme
+    # (here "https" -> 8443), but Apache never actually terminates TLS -- the
+    # ALB does that and forwards plain HTTP to the pod. Point the probe at
+    # the real listening port instead, otherwise it never becomes Ready.
+    # readinessProbe:
+    #   httpGet:
+    #     port: http
+    #     scheme: HTTP
+
+    # Native chart multisite support (maps to WORDPRESS_ENABLE_MULTISITE and
+    # friends). Unlike hand-rolling the MULTISITE/DOMAIN_CURRENT_SITE
+    # defines via wordpressExtraConfigContent, this lets the entrypoint run
+    # `wp core multisite-install` instead of a plain single-site install, so
+    # the network's primary site actually gets created instead of erroring
+    # with "Site not found" on first boot. multisite.host is set per
+    # environment.
+    multisite:
+      enable: true
+      networkType: subdomain
+
     metrics:
       enabled: true
 

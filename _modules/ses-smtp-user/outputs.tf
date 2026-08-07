@@ -8,3 +8,8 @@ output "smtp_password" {
   value       = aws_iam_access_key.smtp.ses_smtp_password_v4
   sensitive   = true
 }
+
+output "smtp_credentials_secret_arn" {
+  description = "ARN of the AWS Secrets Manager secret holding the SMTP username and password."
+  value       = aws_secretsmanager_secret.smtp_credentials.arn
+}

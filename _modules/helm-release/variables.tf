@@ -77,26 +77,20 @@ variable "rds_secret_key" {
   default     = "mariadb-password"
 }
 
-variable "ses_smtp_password" {
-  description = "SES SMTP password (e.g. the ses-smtp-user module's `smtp_password` output) to store in a Kubernetes Secret for the chart's `smtpExistingSecret` to reference. When set, a Kubernetes Secret named `ses_secret_name` is created in `namespace` with the password under key `ses_secret_key`."
+variable "ses_smtp_credentials_secret_arn" {
+  description = "ARN of the AWS Secrets Manager secret holding the SES SMTP credentials (the ses-smtp-user module's `smtp_credentials_secret_arn` output). When set, a Kubernetes Secret named `ses_secret_name` is created in `namespace` with the password under key `ses_secret_key`."
   type        = string
   default     = null
-  sensitive   = true
-
-  validation {
-    condition     = var.ses_smtp_password == null || coalesce(var.ses_smtp_password, "") != ""
-    error_message = "When ses_smtp_password is set, it must be a non-empty string."
-  }
 }
 
 variable "ses_secret_name" {
-  description = "Name of the Kubernetes Secret to create from the SES SMTP password. Required when `ses_smtp_password` is set."
+  description = "Name of the Kubernetes Secret to create from the SES SMTP credentials secret. Required when `ses_smtp_credentials_secret_arn` is set."
   type        = string
   default     = null
 
   validation {
-    condition     = var.ses_smtp_password == null || coalesce(var.ses_secret_name, "") != ""
-    error_message = "When ses_smtp_password is set, ses_secret_name must be a non-empty string."
+    condition     = var.ses_smtp_credentials_secret_arn == null || coalesce(var.ses_secret_name, "") != ""
+    error_message = "When ses_smtp_credentials_secret_arn is set, ses_secret_name must be a non-empty string."
   }
 }
 

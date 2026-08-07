@@ -101,12 +101,22 @@ resource "aws_secretsmanager_secret_version" "wordpress_admin" {
   })
 }
 
+# Secrets Manager is eventually consistent -- reading the version back
+# immediately after creation can race and fail with "couldn't find resource",
+# so give it a moment to propagate first.
+resource "time_sleep" "wait_for_wordpress_admin_secret" {
+  count = var.create_wordpress_admin_credentials ? 1 : 0
+
+  depends_on      = [aws_secretsmanager_secret_version.wordpress_admin]
+  create_duration = "10s"
+}
+
 data "aws_secretsmanager_secret_version" "wordpress_admin" {
   count = var.create_wordpress_admin_credentials ? 1 : 0
 
   secret_id = aws_secretsmanager_secret.wordpress_admin[0].id
 
-  depends_on = [aws_secretsmanager_secret_version.wordpress_admin]
+  depends_on = [time_sleep.wait_for_wordpress_admin_secret]
 }
 
 resource "kubernetes_secret_v1" "wordpress_admin" {

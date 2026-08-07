@@ -199,21 +199,6 @@ inputs = {
 
       ingress:
         hostname: ${local.env}.wp.${local.domain}
-        # Without this, the ALB has no routing rule for these hosts and
-        # requests to them fail at the load balancer before reaching WordPress.
-        # pathType must be explicit: extraHosts defaults to ImplementationSpecific,
-        # which ALB treats as an exact "/" match instead of a prefix, so only the
-        # homepage would route and every asset path would fail.
-        extraHosts:
-          - name: store.${local.env}.wp.${local.domain}
-            path: /
-            pathType: Prefix
-          - name: store.${local.domain}
-            path: /
-            pathType: Prefix
-          - name: ${local.domain}
-            path: /
-            pathType: Prefix
 
       persistence:
         size: ${local.wp_config.persistence_size}
@@ -257,8 +242,15 @@ inputs = {
           # (not store.${local.env}.wp.${local.domain}) -- its DNS is
           # managed outside this repository, but the proxy still needs to
           # route it to this release.
+          # pathType must be explicit: extraHosts defaults to ImplementationSpecific,
+          # which ALB treats as an exact "/" match instead of a prefix, so only the
+          # homepage would route and every asset path would fail.
           - name: store.${local.domain}
             path: /
+            pathType: Prefix
+          - name: ${local.domain}
+            path: /
+            pathType: Prefix
     YAML
     ,
     <<-YAML

@@ -113,7 +113,7 @@ generate "helm_provider" {
         cluster_ca_certificate = base64decode(data.aws_eks_cluster.wordpress.certificate_authority[0].data)
 
         exec {
-          api_version = "client.authentication.k8s.io/v1beta1"
+          api_version = "client.authentication.k8s.io/v1"
           command     = "aws"
           args        = ["eks", "get-token", "--cluster-name", "${dependency.eks.outputs.cluster_name}", "--region", "${local.region}"]
         }
@@ -125,7 +125,7 @@ generate "helm_provider" {
       cluster_ca_certificate = base64decode(data.aws_eks_cluster.wordpress.certificate_authority[0].data)
 
       exec {
-        api_version = "client.authentication.k8s.io/v1beta1"
+        api_version = "client.authentication.k8s.io/v1"
         command     = "aws"
         args        = ["eks", "get-token", "--cluster-name", "${dependency.eks.outputs.cluster_name}", "--region", "${local.region}"]
       }

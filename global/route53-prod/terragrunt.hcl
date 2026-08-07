@@ -1,6 +1,5 @@
 locals {
   common       = read_terragrunt_config("${get_repo_root()}/_common/route53.hcl")
-  region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
   env    = "prod"

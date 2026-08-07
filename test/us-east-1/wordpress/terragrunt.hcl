@@ -195,6 +195,11 @@ inputs = {
 
       ingress:
         hostname: ${local.env}.wp.${local.domain}
+        # Without this, the ALB has no routing rule for the store.* host and
+        # requests to it fail at the load balancer before reaching WordPress.
+        extraHosts:
+          - name: store.${local.env}.wp.${local.domain}
+            path: /
 
       persistence:
         size: ${local.wp_config.persistence_size}

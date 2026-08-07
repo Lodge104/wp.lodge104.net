@@ -168,14 +168,8 @@ inputs = {
       # to be literal subdomains of DOMAIN_CURRENT_SITE. In production the
       # store site uses store.${local.domain} directly (its DNS is managed
       # outside this repository).
-      wordpressExtraConfigContent: |
-        define('WP_ALLOW_MULTISITE', true);
-        define('MULTISITE', true);
-        define('SUBDOMAIN_INSTALL', true);
-        define('DOMAIN_CURRENT_SITE', '${local.env}.wp.${local.domain}');
-        define('PATH_CURRENT_SITE', '/');
-        define('SITE_ID_CURRENT_SITE', 1);
-        define('BLOG_ID_CURRENT_SITE', 1);
+      multisite:
+        host: ${local.env}.wp.${local.domain}
 
       replicaCount: ${local.wp_config.replica_count}
       resourcesPreset: ${local.wp_config.resources_preset}

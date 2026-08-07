@@ -164,14 +164,8 @@ inputs = {
       # store.* site) are added afterwards from wp-admin and can use any
       # domain the proxy/ingress routes to this release -- they don't need
       # to be literal subdomains of DOMAIN_CURRENT_SITE.
-      wordpressExtraConfigContent: |
-        define('WP_ALLOW_MULTISITE', true);
-        define('MULTISITE', true);
-        define('SUBDOMAIN_INSTALL', true);
-        define('DOMAIN_CURRENT_SITE', '${local.env}.wp.${local.domain}');
-        define('PATH_CURRENT_SITE', '/');
-        define('SITE_ID_CURRENT_SITE', 1);
-        define('BLOG_ID_CURRENT_SITE', 1);
+      multisite:
+        host: ${local.env}.wp.${local.domain}
 
       replicaCount: ${local.wp_config.replica_count}
       resourcesPreset: ${local.wp_config.resources_preset}

@@ -52,10 +52,10 @@ locals {
     # (here "https" -> 8443), but Apache never actually terminates TLS -- the
     # ALB does that and forwards plain HTTP to the pod. Point the probe at
     # the real listening port instead, otherwise it never becomes Ready.
-    readinessProbe:
-      httpGet:
-        port: http
-        scheme: HTTP
+    # readinessProbe:
+    #   httpGet:
+    #     port: http
+    #     scheme: HTTP
 
     # Native chart multisite support (maps to WORDPRESS_ENABLE_MULTISITE and
     # friends). Unlike hand-rolling the MULTISITE/DOMAIN_CURRENT_SITE

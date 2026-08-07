@@ -16,9 +16,7 @@ dependency "zone" {
   config_path = "${get_repo_root()}/global/route53-test"
 
   mock_outputs = {
-    route53_zone_zone_id = {
-      "test.wp.lodge104.net" = "Z2222222222222"
-    }
+    id = "Z2222222222222"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -32,6 +30,6 @@ inputs = merge(
   {
     domain_name               = "${local.env}.wp.${local.domain}"
     subject_alternative_names = ["*.${local.env}.wp.${local.domain}"]
-    zone_id                   = dependency.zone.outputs.route53_zone_zone_id["${local.env}.wp.${local.domain}"]
+    zone_id                   = dependency.zone.outputs.id
   }
 )

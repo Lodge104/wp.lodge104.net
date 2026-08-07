@@ -16,9 +16,7 @@ dependency "zone" {
   config_path = "${get_repo_root()}/global/route53-prod"
 
   mock_outputs = {
-    route53_zone_zone_id = {
-      "prod.wp.lodge104.net" = "Z3333333333333"
-    }
+    id = "Z3333333333333"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -38,6 +36,6 @@ inputs = merge(
       # explicit SAN on this certificate.
       "store.${local.domain}",
     ]
-    zone_id = dependency.zone.outputs.route53_zone_zone_id["${local.env}.wp.${local.domain}"]
+    zone_id = dependency.zone.outputs.id
   }
 )

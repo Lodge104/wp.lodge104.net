@@ -66,7 +66,7 @@ variable "rds_secret_name" {
   default     = null
 
   validation {
-    condition     = var.rds_master_user_secret_arn == null || coalesce(var.rds_secret_name, "") != ""
+    condition     = var.rds_master_user_secret_arn == null || try(trimspace(var.rds_secret_name) != "", false)
     error_message = "When rds_master_user_secret_arn is set, rds_secret_name must be a non-empty string."
   }
 }
@@ -84,13 +84,21 @@ variable "create_wordpress_admin_credentials" {
 }
 
 variable "wordpress_admin_secret_name" {
-  description = "Name for the AWS Secrets Manager secret (and matching Kubernetes Secret) holding the initial WordPress admin credentials. Required when `create_wordpress_admin_credentials` is true."
+  description = "Name for the AWS Secrets Manager secret and matching Kubernetes Secret holding the initial WordPress admin credentials. Must be a valid Kubernetes DNS subdomain because it is used unchanged for both resources. Required when `create_wordpress_admin_credentials` is true."
   type        = string
   default     = null
 
   validation {
-    condition     = !var.create_wordpress_admin_credentials || coalesce(var.wordpress_admin_secret_name, "") != ""
+    condition     = !var.create_wordpress_admin_credentials || try(trimspace(var.wordpress_admin_secret_name) != "", false)
     error_message = "When create_wordpress_admin_credentials is true, wordpress_admin_secret_name must be a non-empty string."
+  }
+
+  validation {
+    condition = !var.create_wordpress_admin_credentials || try(
+      length(var.wordpress_admin_secret_name) <= 253 && can(regex("^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$", var.wordpress_admin_secret_name)),
+      false
+    )
+    error_message = "When create_wordpress_admin_credentials is true, wordpress_admin_secret_name must be a valid Kubernetes DNS subdomain (lowercase alphanumeric, '-', or '.', start/end alphanumeric, max 253 chars)."
   }
 }
 
@@ -110,6 +118,14 @@ variable "wordpress_admin_secret_recovery_window_in_days" {
   description = "Number of days AWS Secrets Manager waits before permanently deleting the WordPress admin credentials secret after destruction. Set to 0 to delete immediately (useful for ephemeral/dev environments)."
   type        = number
   default     = 0
+
+  validation {
+    condition = var.wordpress_admin_secret_recovery_window_in_days == 0 || (
+      var.wordpress_admin_secret_recovery_window_in_days >= 7 &&
+      var.wordpress_admin_secret_recovery_window_in_days <= 30
+    )
+    error_message = "wordpress_admin_secret_recovery_window_in_days must be 0 or an integer from 7 through 30."
+  }
 }
 
 variable "expose_ingress_hostname" {
@@ -124,7 +140,7 @@ variable "ingress_name" {
   default     = null
 
   validation {
-    condition     = !var.expose_ingress_hostname || coalesce(var.ingress_name, "") != ""
+    condition     = !var.expose_ingress_hostname || try(trimspace(var.ingress_name) != "", false)
     error_message = "When expose_ingress_hostname is true, ingress_name must be a non-empty string."
   }
 }

@@ -60,11 +60,13 @@ resource "kubernetes_secret_v1" "rds_credentials" {
 }
 
 # Generate the initial WordPress admin user (username and password) with
-# random values, store them in AWS Secrets Manager, and sync the password
-# into a Kubernetes Secret the chart's top-level `existingSecret` value can
-# reference (must contain key "wordpress-password"). This removes the need
-# to set/know an admin password up front -- retrieve the generated
-# credentials from Secrets Manager after apply.
+# random values, store them in AWS Secrets Manager, then read the stored
+# credentials back so the chart consumes the persisted values. The password
+# is also synced into a Kubernetes Secret the chart's top-level
+# `existingSecret` value can reference (must contain key
+# "wordpress-password"). This removes the need to set/know an admin
+# password up front -- retrieve the generated credentials from Secrets
+# Manager after apply.
 resource "random_string" "wordpress_admin_username" {
   count = var.create_wordpress_admin_credentials ? 1 : 0
 
@@ -99,18 +101,24 @@ resource "aws_secretsmanager_secret_version" "wordpress_admin" {
   })
 }
 
+data "aws_secretsmanager_secret_version" "wordpress_admin" {
+  count = var.create_wordpress_admin_credentials ? 1 : 0
+
+  secret_id = aws_secretsmanager_secret.wordpress_admin[0].id
+
+  depends_on = [aws_secretsmanager_secret_version.wordpress_admin]
+}
+
 resource "kubernetes_secret_v1" "wordpress_admin" {
   count = var.create_wordpress_admin_credentials ? 1 : 0
 
   metadata {
-    # AWS Secrets Manager names may contain characters (e.g. "/") that are
-    # invalid in Kubernetes resource names, so sanitize before reuse here.
-    name      = replace(var.wordpress_admin_secret_name, "/", "-")
+    name      = var.wordpress_admin_secret_name
     namespace = var.namespace
   }
 
   data = {
-    "wordpress-password" = random_password.wordpress_admin[0].result
+    "wordpress-password" = jsondecode(data.aws_secretsmanager_secret_version.wordpress_admin[0].secret_string)["password"]
   }
 
   type = "Opaque"
@@ -133,7 +141,7 @@ resource "helm_release" "this" {
     var.values,
     var.create_wordpress_admin_credentials ? [
       yamlencode({
-        wordpressUsername = "${var.wordpress_admin_username_prefix}-${random_string.wordpress_admin_username[0].result}"
+        wordpressUsername = jsondecode(data.aws_secretsmanager_secret_version.wordpress_admin[0].secret_string)["username"]
         existingSecret    = kubernetes_secret_v1.wordpress_admin[0].metadata[0].name
       })
     ] : []

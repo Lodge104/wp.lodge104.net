@@ -41,9 +41,7 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    create_zone   = true
-    enable_dnssec = true
-    name          = "${local.env}.wp.${local.domain}"
+    name = "${local.env}.wp.${local.domain}"
     records = {
       cloudfront_ipv4 = {
         full_name = "${local.env}.wp.${local.domain}"

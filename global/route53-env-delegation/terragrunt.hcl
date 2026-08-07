@@ -12,7 +12,7 @@ include "root" {
 }
 
 dependency "prod_zone" {
-  config_path = "${get_repo_root()}/prod/us-east-1/route53"
+  config_path = "${get_repo_root()}/global/route53-prod"
 
   mock_outputs = {
     name_servers = [
@@ -27,7 +27,7 @@ dependency "prod_zone" {
 }
 
 dependency "dev_zone" {
-  config_path = "${get_repo_root()}/dev/us-east-1/route53"
+  config_path = "${get_repo_root()}/global/route53-dev"
 
   mock_outputs = {
     name_servers = [
@@ -42,7 +42,7 @@ dependency "dev_zone" {
 }
 
 dependency "test_zone" {
-  config_path = "${get_repo_root()}/test/us-east-1/route53"
+  config_path = "${get_repo_root()}/global/route53-test"
 
   mock_outputs = {
     name_servers = [

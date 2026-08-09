@@ -1,21 +1,18 @@
-# ── Terraform ─────────────────────────────────────────────────────────────────────
-.terraform/
-.terraform.lock.hcl
+# ── Terraform / Terragrunt ────────────────────────────────────────────────────────
+**/.terraform/
+**/.terragrunt-cache/
+**/.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
+*.tfplan
 *.tfvars
 !*.tfvars.example
 crash.log
+crash.*.log
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-
-# ── Packer ────────────────────────────────────────────────────────────────────────
-packer_cache/
-*.pkrvars.hcl
-!*.pkrvars.hcl.example
-manifest.json
 
 # ── Secrets / local config ────────────────────────────────────────────────────────
 .env

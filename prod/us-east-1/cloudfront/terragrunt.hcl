@@ -33,10 +33,8 @@ inputs = merge(
   {
     comment = "${local.project} ${local.env} distribution"
 
-    # Multisite "store" site. It uses the bare store.${local.domain} in
-    # production (DNS managed outside this repository), not the
-    # store.${local.env}.wp.${local.domain} pattern used in dev/test.
-    aliases = ["${local.env}.wp.${local.domain}", "store.${local.domain}"]
+    # Multisite "store" site shares this distribution/origin.
+    aliases = ["${local.env}.wp.${local.domain}", "store.${local.env}.wp.${local.domain}"]
 
     # Prod: all edge locations for lowest latency globally
     price_class = "PriceClass_All"

@@ -199,6 +199,8 @@ inputs = {
       persistence:
         size: ${local.wp_config.persistence_size}
 
+      podAntiAffinityPreset: ${local.wp_config.pod_anti_affinity_preset}
+
       # Cost savings: disable PDB in dev.
       pdb:
         create: false

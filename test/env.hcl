@@ -30,12 +30,12 @@ locals {
   }
 
   wordpress = {
-    blog_name       = "Lodge104 (Test)"
-    replica_count   = 2
+    blog_name        = "Lodge104 (Test)"
+    replica_count    = 2
     resources_preset = "medium"
     persistence_size = "10Gi"
-    pdb_create      = true
+    pdb_create       = true
     pdb_min_available = 1
-    pod_anti_affinity_preset = "soft"
+    pod_anti_affinity_preset = "hard"
   }
 }

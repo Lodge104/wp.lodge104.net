@@ -6,9 +6,9 @@ locals {
 
   eks_node_groups = {
     general = {
-      min_size       = 1
+      min_size       = 2
       max_size       = 3
-      desired_size   = 1
+      desired_size   = 2
       instance_types = ["t3.medium"]
       capacity_type  = "SPOT"
     }
@@ -30,10 +30,11 @@ locals {
   }
 
   wordpress = {
-    blog_name       = "Lodge104 (Dev)"
-    replica_count   = 1
-    resources_preset = "small"
-    persistence_size = "5Gi"
-    pdb_create      = false
+    blog_name                 = "Lodge104 (Dev)"
+    replica_count             = 2
+    resources_preset          = "small"
+    persistence_size          = "5Gi"
+    pdb_create                = false
+    pod_anti_affinity_preset  = "hard"
   }
 }

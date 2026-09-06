@@ -75,6 +75,6 @@ locals {
       enabled: true
 
     autoscaling:
-      enabled: false
+      enabled: true
   YAML
 }

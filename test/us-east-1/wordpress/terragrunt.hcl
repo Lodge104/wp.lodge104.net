@@ -201,6 +201,9 @@ inputs = {
 
       podAntiAffinityPreset: ${local.wp_config.pod_anti_affinity_preset}
 
+      autoscaling:
+        enabled: false
+
       pdb:
         create: ${local.wp_config.pdb_create}
         minAvailable: ${local.wp_config.pdb_min_available}

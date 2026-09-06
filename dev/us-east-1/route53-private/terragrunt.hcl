@@ -4,9 +4,10 @@ locals {
   region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env    = local.env_vars.locals.env
-  region = local.region_vars.locals.aws_region
-  domain = local.project_vars.locals.domain
+  env     = local.env_vars.locals.env
+  region  = local.region_vars.locals.aws_region
+  project = local.project_vars.locals.project_name
+  domain  = local.project_vars.locals.domain
 }
 
 include "root" {
@@ -27,7 +28,7 @@ dependency "rds" {
   config_path = "../rds"
 
   mock_outputs = {
-    cluster_endpoint = "lodge104-dev.cluster-xxxxxxxxxxxx.us-east-1.rds.amazonaws.com"
+    cluster_endpoint = "${local.project}-${local.env}.cluster-xxxxxxxxxxxx.${local.region}.rds.amazonaws.com"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -36,7 +37,7 @@ dependency "elasticache" {
   config_path = "../elasticache"
 
   mock_outputs = {
-    cluster_address = "lodge104-dev.xxxxxx.cfg.use1.cache.amazonaws.com"
+    cluster_address = "${local.project}-${local.env}.xxxxxx.cfg.${local.region}.cache.amazonaws.com"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }

@@ -35,6 +35,6 @@ locals {
     resources_preset          = "small"
     persistence_size          = "5Gi"
     pdb_create                = false
-    pod_anti_affinity_preset = "hard"
+    pod_anti_affinity_preset  = "hard"
   }
 }

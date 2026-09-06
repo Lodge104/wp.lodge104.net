@@ -36,6 +36,6 @@ locals {
     persistence_size          = "10Gi"
     pdb_create                = true
     pdb_min_available         = 1
-    pod_anti_affinity_preset = "hard"
+    pod_anti_affinity_preset  = "hard"
   }
 }

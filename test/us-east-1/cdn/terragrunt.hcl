@@ -35,5 +35,6 @@ inputs = merge(
   comment             = "${local.project} ${local.env} uploads CDN"
   aliases             = ["cdn.${local.env}.wp.${local.domain}"]
   acm_certificate_arn = dependency.acm.outputs.acm_certificate_arn
+  origin_access_control_name = "cdn-${local.env}"
   }
 )

@@ -92,7 +92,7 @@ module "cloudfront" {
 
   create_origin_access_control = true
   origin_access_control = {
-    cdn = {
+    (var.origin_access_control_name) = {
       description      = "CloudFront access to ${var.bucket_name}"
       origin_type      = "s3"
       signing_behavior = "always"
@@ -103,7 +103,7 @@ module "cloudfront" {
   origin = {
     cdn = {
       domain_name           = aws_s3_bucket.cdn.bucket_regional_domain_name
-      origin_access_control = "cdn"
+      origin_access_control = var.origin_access_control_name
     }
   }
 

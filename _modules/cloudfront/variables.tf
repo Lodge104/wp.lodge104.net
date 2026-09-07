@@ -38,6 +38,12 @@ variable "acm_certificate_arn" {
   type        = string
 }
 
+variable "origin_access_control_name" {
+  description = "Unique CloudFront Origin Access Control name. CloudFront names are account-global."
+  type        = string
+  default     = "cdn"
+}
+
 variable "tags" {
   description = "Tags applied to the CDN bucket."
   type        = map(string)

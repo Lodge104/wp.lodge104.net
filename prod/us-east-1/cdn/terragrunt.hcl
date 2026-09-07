@@ -36,5 +36,6 @@ inputs = merge(
   aliases             = ["cdn.${local.env}.wp.${local.domain}"]
   acm_certificate_arn = dependency.acm.outputs.acm_certificate_arn
   price_class         = "PriceClass_All"
+  origin_access_control_name = "cdn-${local.env}"
   }
 )

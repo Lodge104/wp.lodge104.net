@@ -28,14 +28,8 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    domain_name = "${local.env}.wp.${local.domain}"
-    subject_alternative_names = [
-      "*.${local.env}.wp.${local.domain}",
-      # Multisite "store" site uses the bare domain in production (not a
-      # subdomain of ${local.env}.wp.${local.domain}), so it needs its own
-      # explicit SAN on this certificate.
-      "store.${local.domain}",
-    ]
-    zone_id = dependency.zone.outputs.id
+    domain_name               = "${local.env}.wp.${local.domain}"
+    subject_alternative_names = ["*.${local.env}.wp.${local.domain}"]
+    zone_id                   = dependency.zone.outputs.id
   }
 )

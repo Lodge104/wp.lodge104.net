@@ -23,6 +23,9 @@ dependency "cloudfront" {
     cloudfront_distribution_hosted_zone_id = "Z2FDTNDATAQYW2"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  # During `run -a destroy`, cloudfront may already be torn down by the time
+  # its outputs are read here, leaving them empty; fall back to mocks.
+  mock_outputs_merge_strategy_with_state = "shallow"
 }
 
 dependency "wordpress" {
@@ -32,6 +35,7 @@ dependency "wordpress" {
     ingress_hostname = "mock-alb-123456789.${local.region}.elb.amazonaws.com"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "zone" {
@@ -58,6 +62,23 @@ inputs = merge(
       }
       cloudfront_ipv6 = {
         full_name = "${local.env}.wp.${local.domain}"
+        type      = "AAAA"
+        alias = {
+          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
+          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
+        }
+      }
+      # Multisite "store" site, served by the same CloudFront distribution.
+      store_cloudfront_ipv4 = {
+        full_name = "store.${local.env}.wp.${local.domain}"
+        type      = "A"
+        alias = {
+          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
+          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
+        }
+      }
+      store_cloudfront_ipv6 = {
+        full_name = "store.${local.env}.wp.${local.domain}"
         type      = "AAAA"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name

@@ -1,5 +1,6 @@
 locals {
   common       = read_terragrunt_config("${get_repo_root()}/_common/wordpress.hcl")
+  rds_common   = read_terragrunt_config("${get_repo_root()}/_common/rds.hcl")
   env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
   region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
@@ -165,9 +166,7 @@ inputs = {
       # ${local.env}.wp.${local.domain}. Additional network sites (e.g. the
       # store.* site) are added afterwards from wp-admin and can use any
       # domain the proxy/ingress routes to this release -- they don't need
-      # to be literal subdomains of DOMAIN_CURRENT_SITE. In production the
-      # store site uses store.${local.domain} directly (its DNS is managed
-      # outside this repository).
+      # to be literal subdomains of DOMAIN_CURRENT_SITE.
       multisite:
         host: ${local.env}.wp.${local.domain}
 
@@ -177,8 +176,8 @@ inputs = {
       externalDatabase:
         host: "${dependency.rds.outputs.cluster_endpoint}"
         port: 3306
-        user: ${local.project}admin
-        database: ${local.project}
+        user: ${local.rds_common.locals.master_username}
+        database: ${local.rds_common.locals.database_name}
         existingSecret: ${local.project}-${local.env}-rds-credentials
 
       externalCache:
@@ -238,17 +237,11 @@ inputs = {
         extraHosts:
           - name: origin.${local.env}.wp.${local.domain}
             path: /
-          # Multisite "store" site. Uses the bare store.${local.domain}
-          # (not store.${local.env}.wp.${local.domain}) -- its DNS is
-          # managed outside this repository, but the proxy still needs to
-          # route it to this release.
+          # Multisite "store" site, routed to this same release/ingress.
           # pathType must be explicit: extraHosts defaults to ImplementationSpecific,
           # which ALB treats as an exact "/" match instead of a prefix, so only the
           # homepage would route and every asset path would fail.
-          - name: store.${local.domain}
-            path: /
-            pathType: Prefix
-          - name: ${local.domain}
+          - name: store.${local.env}.wp.${local.domain}
             path: /
             pathType: Prefix
     YAML

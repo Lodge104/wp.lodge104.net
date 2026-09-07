@@ -48,14 +48,6 @@ resource "aws_security_group" "efs" {
   description = "Allow NFS traffic from EKS nodes to EFS"
   vpc_id      = var.vpc_id
 
-  ingress {
-    description     = "NFS from EKS nodes"
-    from_port       = 2049
-    to_port         = 2049
-    protocol        = "tcp"
-    security_groups = [var.eks_node_security_group_id]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -66,6 +58,16 @@ resource "aws_security_group" "efs" {
   tags = {
     Name = "${var.name}-efs"
   }
+}
+
+resource "aws_security_group_rule" "nfs_from_eks_nodes" {
+  type                     = "ingress"
+  from_port                = 2049
+  to_port                  = 2049
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.efs.id
+  source_security_group_id = var.eks_node_security_group_id
+  description              = "NFS from EKS nodes"
 }
 
 # ---------------------------------------------------------------------------

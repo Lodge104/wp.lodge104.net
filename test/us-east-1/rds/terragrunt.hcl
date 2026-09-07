@@ -35,6 +35,14 @@ dependency "eks" {
 
 terraform {
   source = "tfr:///terraform-aws-modules/rds-aurora/aws?version=9.3.0"
+
+  extra_arguments "final_snapshot" {
+    commands = ["destroy"]
+    arguments = [
+      "-var=final_snapshot_identifier=${local.project}-${local.env}-final",
+      "-var=skip_final_snapshot=false",
+    ]
+  }
 }
 
 inputs = merge(
@@ -60,6 +68,7 @@ inputs = merge(
     }
 
     deletion_protection = false
-    skip_final_snapshot = false
+    skip_final_snapshot       = false
+    final_snapshot_identifier = "${local.project}-${local.env}-final"
   }
 )

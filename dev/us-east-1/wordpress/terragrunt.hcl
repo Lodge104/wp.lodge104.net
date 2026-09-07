@@ -1,5 +1,6 @@
 locals {
   common       = read_terragrunt_config("${get_repo_root()}/_common/wordpress.hcl")
+  rds_common   = read_terragrunt_config("${get_repo_root()}/_common/rds.hcl")
   env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
   region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
@@ -173,8 +174,8 @@ inputs = {
       externalDatabase:
         host: "${dependency.rds.outputs.cluster_endpoint}"
         port: 3306
-        user: ${local.project}admin
-        database: ${local.project}
+        user: ${local.rds_common.locals.master_username}
+        database: ${local.rds_common.locals.database_name}
         existingSecret: ${local.project}-${local.env}-rds-credentials
 
       externalCache:
@@ -198,6 +199,11 @@ inputs = {
 
       persistence:
         size: ${local.wp_config.persistence_size}
+
+      podAntiAffinityPreset: ${local.wp_config.pod_anti_affinity_preset}
+
+      autoscaling:
+        enabled: false
 
       # Cost savings: disable PDB in dev.
       pdb:

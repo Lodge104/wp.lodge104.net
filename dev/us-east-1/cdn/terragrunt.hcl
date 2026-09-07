@@ -1,4 +1,5 @@
 locals {
+  common       = read_terragrunt_config("${get_repo_root()}/_common/cdn.hcl")
   env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
   region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
@@ -27,13 +28,12 @@ terraform {
   source = "${get_repo_root()}/_modules/cloudfront"
 }
 
-inputs = {
+inputs = merge(
+  local.common.locals,
+  {
   bucket_name         = "${local.project}-${local.env}-cdn"
   comment             = "${local.project} ${local.env} uploads CDN"
   aliases             = ["cdn.${local.env}.wp.${local.domain}"]
   acm_certificate_arn = dependency.acm.outputs.acm_certificate_arn
-  price_class         = "PriceClass_100"
-  is_ipv6_enabled     = true
-  http_version        = "http2and3"
-  wait_for_deployment = false
-}
+  }
+)

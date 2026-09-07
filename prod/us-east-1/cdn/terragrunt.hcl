@@ -33,7 +33,10 @@ inputs = merge(
   {
   bucket_name         = "${local.project}-${local.env}-cdn"
   comment             = "${local.project} ${local.env} uploads CDN"
-  aliases             = ["cdn.${local.env}.wp.${local.domain}"]
+  aliases             = [
+    "cdn.${local.env}.wp.${local.domain}",
+    "cdn.${local.domain}",
+  ]
   acm_certificate_arn = dependency.acm.outputs.acm_certificate_arn
   price_class         = "PriceClass_All"
   origin_access_control_name = "cdn-${local.env}"

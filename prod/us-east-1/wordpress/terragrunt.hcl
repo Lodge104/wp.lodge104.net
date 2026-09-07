@@ -160,7 +160,7 @@ inputs = {
     local.common.locals.base_values,
     <<-YAML
       wordpressBlogName: "${local.wp_config.blog_name}"
-      wordpressHost: ${local.env}.wp.${local.domain}
+      wordpressHost: ${local.domain}
 
       # Multisite (subdomain install): the network's primary domain stays
       # ${local.env}.wp.${local.domain}. Additional network sites (e.g. the
@@ -168,7 +168,7 @@ inputs = {
       # domain the proxy/ingress routes to this release -- they don't need
       # to be literal subdomains of DOMAIN_CURRENT_SITE.
       multisite:
-        host: ${local.env}.wp.${local.domain}
+        host: ${local.domain}
 
       replicaCount: ${local.wp_config.replica_count}
       resourcesPreset: ${local.wp_config.resources_preset}
@@ -242,6 +242,14 @@ inputs = {
           # which ALB treats as an exact "/" match instead of a prefix, so only the
           # homepage would route and every asset path would fail.
           - name: store.${local.env}.wp.${local.domain}
+            path: /
+            pathType: Prefix
+          # Root-domain aliases are accepted by the prod CloudFront
+          # distribution and must route to this same WordPress release.
+          - name: ${local.domain}
+            path: /
+            pathType: Prefix
+          - name: store.${local.domain}
             path: /
             pathType: Prefix
     YAML

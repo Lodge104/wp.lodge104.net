@@ -334,6 +334,10 @@ resource "aws_instance" "bastion" {
       if dnf install -y amazon-efs-utils nfs-utils mariadb1011 jq unzip; then
         break
       fi
+      if [ "$i" -eq 10 ]; then
+        echo "dnf install failed after $i attempts" >&2
+        exit 1
+      fi
       echo "dnf install attempt $i failed, retrying in 10s..."
       sleep 10
     done

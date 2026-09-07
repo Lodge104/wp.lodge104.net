@@ -95,10 +95,9 @@ locals {
     cookies_forward = "none"
   }
 
-  # Ordered cache behaviors implementing the strategy above. target_origin_id
-  # is set to "alb" to match the origin key used in every env's
-  # cloudfront/terragrunt.hcl; merge in a different target_origin_id here if
-  # that ever changes.
+  # Ordered cache behaviors implementing the strategy above. The ALB remains
+  # the origin for the environment CloudFront distribution; uploads have a
+  # separate CDN distribution and hostname.
   ordered_cache_behavior = concat(
     [
       for path_pattern in [

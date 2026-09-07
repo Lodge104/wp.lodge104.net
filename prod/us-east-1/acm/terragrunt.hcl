@@ -28,8 +28,15 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-    domain_name               = "${local.env}.wp.${local.domain}"
-    subject_alternative_names = ["*.${local.env}.wp.${local.domain}"]
-    zone_id                   = dependency.zone.outputs.id
+    domain_name = "${local.env}.wp.${local.domain}"
+    subject_alternative_names = [
+      "*.${local.env}.wp.${local.domain}",
+      local.domain,
+      "store.${local.domain}",
+      "cdn.${local.domain}",
+    ]
+    # Root-domain SANs must be DNS-validated in the parent lodge104.net zone,
+    # not the prod.wp.lodge104.net delegated zone.
+    zone_id = local.common.locals.zone_id
   }
 )

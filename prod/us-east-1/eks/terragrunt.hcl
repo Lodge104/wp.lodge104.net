@@ -25,6 +25,15 @@ dependency "vpc" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "wordpress_s3_access" {
+  config_path = "../wordpress-s3-access"
+
+  mock_outputs = {
+    policy_arn = "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/eks/aws?version=21.24.0"
 }
@@ -38,6 +47,15 @@ inputs = merge(
     subnet_ids               = dependency.vpc.outputs.private_subnets
     control_plane_subnet_ids = dependency.vpc.outputs.intra_subnets
 
-    eks_managed_node_groups = local.env_vars.locals.eks_node_groups
+    eks_managed_node_groups = {
+      for name, group in local.env_vars.locals.eks_node_groups : name => merge(group, {
+        metadata_options = local.common.locals.eks_managed_node_group_defaults.metadata_options
+        iam_role_additional_policies = merge(
+          local.common.locals.eks_managed_node_group_defaults.iam_role_additional_policies,
+          try(group.iam_role_additional_policies, {}),
+          { WordPressS3Access = dependency.wordpress_s3_access.outputs.policy_arn }
+        )
+      })
+    }
   }
 )

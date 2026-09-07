@@ -32,7 +32,6 @@ inputs = merge(
   local.common.locals,
   {
     comment = "${local.project} ${local.env} distribution"
-
     # Multisite "store" site shares this distribution/origin.
     aliases = ["${local.env}.wp.${local.domain}", "store.${local.env}.wp.${local.domain}"]
 

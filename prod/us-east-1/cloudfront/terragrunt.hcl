@@ -32,9 +32,14 @@ inputs = merge(
   local.common.locals,
   {
     comment = "${local.project} ${local.env} distribution"
-
-    # Multisite "store" site shares this distribution/origin.
-    aliases = ["${local.env}.wp.${local.domain}", "store.${local.env}.wp.${local.domain}"]
+    # Multisite "store" site shares this distribution/origin. The legacy
+    # cdn.lodge104.net alias remains on the separate media distribution.
+    aliases = [
+      "${local.env}.wp.${local.domain}",
+      "store.${local.env}.wp.${local.domain}",
+      local.domain,
+      "store.${local.domain}",
+    ]
 
     # Prod: all edge locations for lowest latency globally
     price_class = "PriceClass_All"

@@ -222,6 +222,16 @@ data "aws_iam_policy_document" "bastion_access" {
   }
 
   statement {
+    sid    = "AllowEfsMountTargetLookup"
+    effect = "Allow"
+    actions = [
+      "ec2:DescribeAvailabilityZones",
+      "elasticfilesystem:DescribeMountTargets",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
     sid    = "AllowTransferBucketAccess"
     effect = "Allow"
     actions = [
@@ -331,7 +341,7 @@ resource "aws_instance" "bastion" {
     # which races with this script's dnf transaction and can corrupt the cache.
     for i in $(seq 1 10); do
       dnf clean packages
-      if dnf install -y amazon-efs-utils nfs-utils mariadb1011 jq unzip; then
+      if dnf install -y amazon-efs-utils nfs-utils mariadb1011 jq unzip python3-botocore; then
         break
       fi
       if [ "$i" -eq 10 ]; then
@@ -355,7 +365,17 @@ resource "aws_instance" "bastion" {
     fi
     %{endfor~}
 
-    mount -a -t efs || true
+    for i in $(seq 1 10); do
+      if mount -a -t efs; then
+        exit 0
+      fi
+      if [ "$i" -eq 10 ]; then
+        echo "EFS mount failed after $i attempts" >&2
+        exit 1
+      fi
+      echo "EFS mount attempt $i failed, retrying in 10s..."
+      sleep 10
+    done
     EOT
 
     chmod +x /usr/local/bin/mount-env-efs.sh
@@ -363,6 +383,13 @@ resource "aws_instance" "bastion" {
   EOF
 
   tags = local.common_tags
+
+  depends_on = [
+    aws_vpc_peering_connection.env,
+    aws_route.bastion_to_peer,
+    aws_route.peer_to_bastion,
+    aws_security_group_rule.efs_from_bastion_vpc,
+  ]
 }
 
 resource "aws_vpc_peering_connection" "env" {
@@ -421,6 +448,8 @@ resource "aws_security_group_rule" "efs_from_bastion_vpc" {
   to_port           = 2049
   protocol          = "tcp"
   security_group_id = each.value
-  cidr_blocks       = [local.bastion_vpc_cidr_block]
-  description       = "NFS from bastion VPC"
+  source_security_group_id = aws_security_group.bastion[0].id
+  description              = "NFS from bastion"
+
+  depends_on = [aws_vpc_peering_connection.env]
 }

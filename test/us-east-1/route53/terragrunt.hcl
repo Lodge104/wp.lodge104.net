@@ -25,6 +25,16 @@ dependency "cloudfront" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "cdn" {
+  config_path = "../cdn"
+
+  mock_outputs = {
+    cloudfront_distribution_domain_name    = "d111111abcdef8.cloudfront.net"
+    cloudfront_distribution_hosted_zone_id = "Z2FDTNDATAQYW2"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 dependency "wordpress" {
   config_path = "../wordpress"
 
@@ -80,6 +90,22 @@ inputs = merge(
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
+        }
+      }
+      cdn_ipv4 = {
+        full_name = "cdn.${local.env}.wp.${local.domain}"
+        type      = "A"
+        alias = {
+          name    = dependency.cdn.outputs.cloudfront_distribution_domain_name
+          zone_id = dependency.cdn.outputs.cloudfront_distribution_hosted_zone_id
+        }
+      }
+      cdn_ipv6 = {
+        full_name = "cdn.${local.env}.wp.${local.domain}"
+        type      = "AAAA"
+        alias = {
+          name    = dependency.cdn.outputs.cloudfront_distribution_domain_name
+          zone_id = dependency.cdn.outputs.cloudfront_distribution_hosted_zone_id
         }
       }
       # CloudFront origin domain – lets CloudFront connect to the ALB over

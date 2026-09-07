@@ -22,6 +22,20 @@ locals {
     wordpressScheme: https
     wordpressTablePrefix: wp_
 
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 1
+
+    # WP Offload Media uses the EKS node instance profile instead of static
+    # credentials. The CDN bucket remains private and is delivered by CloudFront.
+    wordpressExtraConfigContent: |
+      define( 'AS3CF_SETTINGS', serialize( array(
+          'provider' => 'aws',
+          'use-server-roles' => true,
+      ) ) );
+
     service:
       type: ClusterIP
 

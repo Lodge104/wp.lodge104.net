@@ -15,6 +15,15 @@ locals {
   eks_managed_node_group_defaults = {
     ami_type                              = "AL2023_x86_64_STANDARD"
     attach_cluster_primary_security_group = true
+    # WP Offload Media uses the worker instance profile via IMDSv2. A hop
+    # limit of 2 allows pod network namespaces to reach IMDS while keeping
+    # token authentication required and instance metadata tags disabled.
+    metadata_options = {
+      http_endpoint               = "enabled"
+      http_tokens                 = "required"
+      http_put_response_hop_limit = 2
+      instance_metadata_tags      = "disabled"
+    }
     iam_role_additional_policies = {
       AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
     }

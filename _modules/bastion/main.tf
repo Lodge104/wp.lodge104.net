@@ -143,10 +143,15 @@ data "aws_rds_cluster" "selected" {
   cluster_identifier = each.value
 }
 
-data "aws_efs_file_systems" "all" {}
+data "aws_resourcegroupstaggingapi_resources" "efs" {
+  resource_type_filters = ["elasticfilesystem:file-system"]
+}
 
 data "aws_efs_file_system" "by_id" {
-  for_each = toset(try(data.aws_efs_file_systems.all.ids, []))
+  for_each = toset([
+    for mapping in data.aws_resourcegroupstaggingapi_resources.efs.resource_tag_mapping_list :
+    regex("file-system/(fs-[0-9a-f]+)$", mapping.resource_arn)[0]
+  ])
 
   file_system_id = each.value
 }
@@ -296,11 +301,12 @@ resource "aws_iam_instance_profile" "bastion" {
 resource "aws_instance" "bastion" {
   count = local.create_bastion ? 1 : 0
 
-  ami                    = data.aws_ssm_parameter.al2023_ami.value
-  instance_type          = var.instance_type
-  subnet_id              = local.bastion_subnet_ids[0]
-  vpc_security_group_ids = [aws_security_group.bastion[0].id]
-  iam_instance_profile   = aws_iam_instance_profile.bastion[0].name
+  ami                         = data.aws_ssm_parameter.al2023_ami.value
+  instance_type               = var.instance_type
+  subnet_id                   = local.bastion_subnet_ids[0]
+  vpc_security_group_ids      = [aws_security_group.bastion[0].id]
+  iam_instance_profile        = aws_iam_instance_profile.bastion[0].name
+  user_data_replace_on_change = true
 
   associate_public_ip_address = false
 
@@ -321,7 +327,16 @@ resource "aws_instance" "bastion" {
     #!/bin/bash
     set -euxo pipefail
 
-    dnf install -y amazon-efs-utils nfs-utils mysql jq unzip
+    # An SSM association installs AmazonEFSUtils via dnf independently at boot,
+    # which races with this script's dnf transaction and can corrupt the cache.
+    for i in $(seq 1 10); do
+      dnf clean packages
+      if dnf install -y amazon-efs-utils nfs-utils mariadb1011 jq unzip; then
+        break
+      fi
+      echo "dnf install attempt $i failed, retrying in 10s..."
+      sleep 10
+    done
 
     mkdir -p /mnt/efs
 
@@ -329,12 +344,12 @@ resource "aws_instance" "bastion" {
     #!/bin/bash
     set -euo pipefail
 
-    %{ for fs in local.efs_mount_descriptors ~}
+    %{for fs in local.efs_mount_descriptors~}
     mkdir -p /mnt/efs/${fs.token}
     if ! grep -q "${fs.id}:/ /mnt/efs/${fs.token} efs" /etc/fstab; then
       echo "${fs.id}:/ /mnt/efs/${fs.token} efs _netdev,tls,noresvport 0 0" >> /etc/fstab
     fi
-    %{ endfor ~}
+    %{endfor~}
 
     mount -a -t efs || true
     EOT

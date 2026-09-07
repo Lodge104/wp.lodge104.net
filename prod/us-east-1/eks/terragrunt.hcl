@@ -49,6 +49,7 @@ inputs = merge(
 
     eks_managed_node_groups = {
       for name, group in local.env_vars.locals.eks_node_groups : name => merge(group, {
+        metadata_options = local.common.locals.eks_managed_node_group_defaults.metadata_options
         iam_role_additional_policies = merge(
           local.common.locals.eks_managed_node_group_defaults.iam_role_additional_policies,
           try(group.iam_role_additional_policies, {}),

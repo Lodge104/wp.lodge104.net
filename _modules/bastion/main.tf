@@ -400,9 +400,11 @@ resource "aws_security_group_rule" "rds_from_bastion_vpc" {
   from_port         = 3306
   to_port           = 3306
   protocol          = "tcp"
-  security_group_id = each.value
-  cidr_blocks       = [local.bastion_vpc_cidr_block]
-  description       = "MySQL from bastion VPC"
+  security_group_id        = each.value
+  source_security_group_id = aws_security_group.bastion[0].id
+  description              = "MySQL from bastion"
+
+  depends_on = [aws_vpc_peering_connection.env]
 }
 
 resource "aws_security_group_rule" "efs_from_bastion_vpc" {

@@ -31,7 +31,7 @@ locals {
     cached_methods         = ["GET", "HEAD"]
 
     min_ttl     = 0
-    default_ttl = 60
+    default_ttl = 0
     max_ttl     = 86400
 
     use_forwarded_values = true

@@ -79,6 +79,21 @@ resource "aws_s3_bucket_policy" "cdn" {
   depends_on = [aws_s3_bucket_public_access_block.cdn]
 }
 
+resource "aws_cloudfront_response_headers_policy" "cdn" {
+  name = "${var.bucket_name}-long-cache"
+
+  # Uploads/assets here are content-addressed and never change, so force a
+  # long-lived, immutable Cache-Control on every response regardless of
+  # what the S3 origin sends.
+  custom_headers_config {
+    items {
+      header   = "Cache-Control"
+      value    = "public, max-age=31536000, immutable"
+      override = true
+    }
+  }
+}
+
 module "cloudfront" {
   source  = "terraform-aws-modules/cloudfront/aws"
   version = "3.4.1"
@@ -115,6 +130,14 @@ module "cloudfront" {
     compress               = true
     query_string           = false
     cookies_forward        = "none"
+
+    # Assets never change, so cache as long as CloudFront allows at the
+    # edge in addition to the forced Cache-Control response header above.
+    min_ttl     = 0
+    default_ttl = 31536000
+    max_ttl     = 31536000
+
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.cdn.id
   }
 
   viewer_certificate = {

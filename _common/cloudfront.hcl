@@ -51,14 +51,12 @@ locals {
       "wordpress_logged_in_*",
       "wordpress_sec_*",
       "wordpress_no_cache",
-      "wordpress_test_cookie",
       "wp-settings-*",
       "wp_woocommerce_session_*",
       "woocommerce_cart_hash",
       "woocommerce_items_in_cart",
       "woocommerce_recently_viewed",
       "AWSALB*",
-      "AWSALBCORS*",
     ]
   }
 

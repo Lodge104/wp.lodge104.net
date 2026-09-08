@@ -59,10 +59,14 @@ inputs = merge(
         # is never covered by.
         domain_name = "origin.${local.env}.wp.${local.domain}"
         custom_origin_config = {
-          http_port              = 80
-          https_port             = 443
-          origin_protocol_policy = "https-only"
-          origin_ssl_protocols   = ["TLSv1.2"]
+          http_port                = 80
+          https_port               = 443
+          origin_protocol_policy   = "https-only"
+          origin_ssl_protocols     = ["TLSv1.2"]
+          # Reuse persistent connections to the ALB instead of a fresh
+          # TCP+TLS handshake per cache-miss request (AWS max is 60s).
+          origin_keepalive_timeout = 60
+          origin_read_timeout      = 60
         }
       }
     }

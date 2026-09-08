@@ -24,6 +24,15 @@ dependency "acm" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "static_assets_cache_policy" {
+  config_path = "../cloudfront-cache-policy"
+
+  mock_outputs = {
+    id = "mock-response-headers-policy-id"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/cloudfront/aws?version=3.4.1"
 }
@@ -73,5 +82,17 @@ inputs = merge(
         target_origin_id = "alb"
       }
     )
+
+    # Force long-lived Cache-Control on the static-asset behaviors (max_ttl
+    # already set to a year in _common/cloudfront.hcl); leave the always-
+    # dynamic no-cache behaviors (max_ttl = 0) untouched.
+    ordered_cache_behavior = [
+      for behavior in local.common.locals.ordered_cache_behavior : merge(
+        behavior,
+        lookup(behavior, "max_ttl", 0) >= 86400 ? {
+          response_headers_policy_id = dependency.static_assets_cache_policy.outputs.id
+        } : {}
+      )
+    ]
   }
 )

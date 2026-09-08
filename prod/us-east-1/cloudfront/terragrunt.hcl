@@ -25,7 +25,7 @@ dependency "acm" {
 }
 
 terraform {
-  source = "${get_repo_root()}/_modules/cloudfront-wordpress"
+  source = "tfr:///terraform-aws-modules/cloudfront/aws?version=3.4.1"
 }
 
 inputs = merge(

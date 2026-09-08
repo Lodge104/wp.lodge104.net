@@ -70,6 +70,7 @@ locals {
         port: http
         scheme: HTTP
     startupProbe:
+      enabled: true
       httpGet:
         port: http
         scheme: HTTP

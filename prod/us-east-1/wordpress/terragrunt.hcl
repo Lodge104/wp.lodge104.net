@@ -283,11 +283,34 @@ inputs = {
                 if grep -qF -- "$CURRENT_PW" "$WP_CONFIG"; then
                   echo "Persisted WordPress DB password matches the current RDS secret; leaving install intact."
                 else
-                  echo "Persisted WordPress DB password is stale (RDS secret has rotated/changed) -- wiping persisted data for a clean re-install."
-                  find /bitnami/wordpress -mindepth 1 -exec rm -rf {} + 2>/dev/null || true
+                  echo "Persisted WordPress DB password is stale; updating wp-config.php in place."
+                  ESCAPED_PW="$(printf '%s' "$CURRENT_PW" | sed 's/[\\/&]/\\\\&/g')"
+                  sed -i "s|^define( 'DB_PASSWORD'.*|define( 'DB_PASSWORD', '$ESCAPED_PW' );|" "$WP_CONFIG"
                 fi
               else
-                echo "No persisted wp-config.php found; nothing to reconcile."
+                echo "No persisted wp-config.php found; recreating it for the existing multisite database."
+                cat > "$WP_CONFIG" <<EOF
+              <?php
+              define( 'DB_NAME', 'lodge104' );
+              define( 'DB_USER', 'lodge104admin' );
+              define( 'DB_PASSWORD', '$CURRENT_PW' );
+              define( 'DB_HOST', 'net-lodge104-wp-prod.cluster-c1hef1pcdszl.us-east-1.rds.amazonaws.com:3306' );
+              define( 'DB_CHARSET', 'utf8mb4' );
+              define( 'DB_COLLATE', '' );
+              \$table_prefix = 'wp_';
+              define( 'MULTISITE', true );
+              define( 'SUBDOMAIN_INSTALL', true );
+              define( 'DOMAIN_CURRENT_SITE', 'lodge104.net' );
+              define( 'PATH_CURRENT_SITE', '/' );
+              define( 'SITE_ID_CURRENT_SITE', 1 );
+              define( 'BLOG_ID_CURRENT_SITE', 1 );
+              define( 'WP_CACHE', true );
+              define( 'AS3CF_SETTINGS', serialize( array( 'provider' => 'aws', 'use-server-roles' => true ) ) );
+              if ( ! defined( 'ABSPATH' ) ) {
+                define( 'ABSPATH', __DIR__ . '/' );
+              }
+              require_once ABSPATH . 'wp-settings.php';
+              EOF
               fi
           volumeMounts:
             - name: wordpress-data

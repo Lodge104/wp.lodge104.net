@@ -35,7 +35,7 @@ locals {
   elasticache = {
     num_cache_nodes = 1
     node_type       = "cache.r6g.large"
-    autoscaling_max_nodes = 3
+
   }
 
   wordpress = {

@@ -235,33 +235,6 @@ resource "kubernetes_secret_v1" "wordpress_admin" {
   depends_on = [kubernetes_namespace_v1.this]
 }
 
-# Optionally sync the SES SMTP credentials (AWS Secrets Manager secret
-# created by the ses-smtp-user module) into a Kubernetes Secret the chart's
-# smtpExistingSecret can reference, instead of requiring it to be created
-# manually.
-data "aws_secretsmanager_secret_version" "ses_smtp_credentials" {
-  count = var.ses_smtp_credentials_secret_arn != null ? 1 : 0
-
-  secret_id = var.ses_smtp_credentials_secret_arn
-}
-
-resource "kubernetes_secret_v1" "ses_smtp_credentials" {
-  count = var.ses_smtp_credentials_secret_arn != null ? 1 : 0
-
-  metadata {
-    name      = var.ses_secret_name
-    namespace = var.namespace
-  }
-
-  data = {
-    (var.ses_secret_key) = jsondecode(data.aws_secretsmanager_secret_version.ses_smtp_credentials[0].secret_string)["password"]
-  }
-
-  type = "Opaque"
-
-  depends_on = [kubernetes_namespace_v1.this]
-}
-
 resource "helm_release" "this" {
   name             = var.release_name
   repository       = var.repository
@@ -287,7 +260,6 @@ resource "helm_release" "this" {
     kubernetes_namespace_v1.this,
     kubernetes_secret_v1.rds_credentials,
     kubernetes_secret_v1.wordpress_admin,
-    kubernetes_secret_v1.ses_smtp_credentials,
   ]
 }
 

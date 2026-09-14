@@ -101,32 +101,6 @@ variable "wordpress_s3_access_policy_arn" {
   default     = null
 }
 
-variable "ses_smtp_credentials_secret_arn" {
-  description = "ARN of the AWS Secrets Manager secret holding the SES SMTP credentials (the ses-smtp-user module's `smtp_credentials_secret_arn` output). When set, a Kubernetes Secret named `ses_secret_name` is created in `namespace` with the password under key `ses_secret_key`."
-  type        = string
-  default     = null
-}
-
-variable "ses_secret_name" {
-  description = "Name of the Kubernetes Secret to create from the SES SMTP credentials secret. Required when `ses_smtp_credentials_secret_arn` is set."
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.ses_smtp_credentials_secret_arn == null || coalesce(var.ses_secret_name, "") != ""
-    error_message = "When ses_smtp_credentials_secret_arn is set, ses_secret_name must be a non-empty string."
-  }
-}
-
-variable "ses_secret_key" {
-  # The Bitnami WordPress chart's smtpExistingSecret must contain a key
-  # named "smtp-password" -- see
-  # https://github.com/bitnami/charts/tree/main/bitnami/wordpress#parameters
-  description = "Key within the created Kubernetes Secret's data map that holds the SES SMTP password. Must be \"smtp-password\" for the Bitnami WordPress chart's smtpExistingSecret to find it, unless the chart changes this requirement."
-  type        = string
-  default     = "smtp-password"
-}
-
 variable "create_wordpress_admin_credentials" {
   description = "Generate an initial WordPress admin user (random username and password), store the credentials in an AWS Secrets Manager secret, and sync the password into a Kubernetes Secret referenced via the chart's `existingSecret` value."
   type        = bool

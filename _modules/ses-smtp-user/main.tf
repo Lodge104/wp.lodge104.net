@@ -55,7 +55,9 @@ resource "aws_secretsmanager_secret" "smtp_credentials" {
 resource "aws_secretsmanager_secret_version" "smtp_credentials" {
   secret_id = aws_secretsmanager_secret.smtp_credentials.id
   secret_string = jsonencode({
-    username = aws_iam_access_key.smtp.id
-    password = aws_iam_access_key.smtp.ses_smtp_password_v4
+    username          = aws_iam_access_key.smtp.id
+    password          = aws_iam_access_key.smtp.ses_smtp_password_v4
+    access_key_id     = aws_iam_access_key.smtp.id
+    secret_access_key = aws_iam_access_key.smtp.secret
   })
 }

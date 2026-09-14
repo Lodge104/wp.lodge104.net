@@ -99,6 +99,8 @@ dependency "ses" {
   mock_outputs = {
     smtp_username               = "mock-smtp-username"
     smtp_credentials_secret_arn = "arn:aws:secretsmanager:${local.region}:000000000000:secret:mock-ses-xxxxxx"
+    access_key_id               = "AKIAIOSFODNN7EXAMPLE"
+    secret_access_key           = "mock-secret-access-key"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -162,9 +164,6 @@ inputs = {
   pod_identity_service_account = local.common.locals.release_name
   wordpress_s3_access_policy_arn = dependency.wordpress_s3_access.outputs.policy_arn
 
-  ses_smtp_credentials_secret_arn = dependency.ses.outputs.smtp_credentials_secret_arn
-  ses_secret_name                 = "${local.project}-${local.env}-ses-credentials"
-
   create_wordpress_admin_credentials = true
   wordpress_admin_secret_name        = "${local.project}-${local.env}-wordpress-admin-credentials"
 
@@ -201,15 +200,14 @@ inputs = {
 
       wordpressConfigureCache: true
 
-      # SES SMTP credentials, generated with terraform (see ../ses). The
-      # domain identity and its DKIM/SPF/DMARC DNS records are assumed to
-      # already be verified in this account.
-      smtpHost: "email-smtp.${local.region}.amazonaws.com"
-      smtpPort: "587"
-      smtpUser: "${dependency.ses.outputs.smtp_username}"
-      smtpProtocol: "tls"
-      smtpFromEmail: "wordpress@${local.domain}"
-      smtpExistingSecret: "${local.project}-${local.env}-ses-credentials"
+      wordpressExtraConfigContent: |
+        define( 'WP_CACHE', true );
+        define( 'AS3CF_SETTINGS', serialize( array(
+            'provider' => 'aws',
+            'use-server-roles' => true,
+        ) ) );
+        define( 'FLUENTMAIL_AWS_ACCESS_KEY_ID', '${dependency.ses.outputs.access_key_id}' );
+        define( 'FLUENTMAIL_AWS_SECRET_ACCESS_KEY', '${dependency.ses.outputs.secret_access_key}' );
 
       ingress:
         hostname: ${local.env}.wp.${local.domain}

@@ -97,12 +97,17 @@ inputs = merge(
       }
       apple = {
         domain_name = "lodge104-apple.s3.us-east-1.amazonaws.com"
-        custom_origin_config = {
-          http_port = 80
-          https_port = 443
-          origin_protocol_policy = "https-only"
-          origin_ssl_protocols = ["TLSv1.2"]
-        }
+        origin_access_control = "apple"
+      }
+    }
+
+    create_origin_access_control = true
+    origin_access_control = {
+      apple = {
+        description      = "CloudFront access to lodge104-apple"
+        origin_type      = "s3"
+        signing_behavior = "always"
+        signing_protocol = "sigv4"
       }
     }
 

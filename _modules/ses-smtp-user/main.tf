@@ -31,6 +31,12 @@ data "aws_iam_policy_document" "send_email" {
     actions   = ["ses:SendRawEmail"]
     resources = [local.identity_arn]
   }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ses:ListIdentities"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_user_policy" "send_email" {

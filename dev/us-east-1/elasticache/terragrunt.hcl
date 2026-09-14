@@ -14,6 +14,40 @@ include "root" {
   expose = true
 }
 
+generate "elasticache_autoscaling" {
+  path      = "elasticache_autoscaling.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<-EOF
+    resource "aws_appautoscaling_target" "memcached" {
+      max_capacity       = ${local.env_vars.locals.elasticache.autoscaling_max_nodes}
+      min_capacity       = ${local.env_vars.locals.elasticache.num_cache_nodes}
+      resource_id        = "cluster:${local.project}-${local.env}"
+      scalable_dimension = "elasticache:cluster:Nodes"
+      service_namespace  = "elasticache"
+
+      depends_on = [aws_elasticache_cluster.this[0]]
+    }
+
+    resource "aws_appautoscaling_policy" "memcached_cpu" {
+      name               = "${local.project}-${local.env}-memcached-cpu"
+      policy_type        = "TargetTrackingScaling"
+      resource_id        = aws_appautoscaling_target.memcached.resource_id
+      scalable_dimension = aws_appautoscaling_target.memcached.scalable_dimension
+      service_namespace  = aws_appautoscaling_target.memcached.service_namespace
+
+      target_tracking_scaling_policy_configuration {
+        predefined_metric_specification {
+          predefined_metric_type = "ElastiCache-CPUUtilization"
+        }
+
+        target_value       = 60
+        scale_in_cooldown  = 300
+        scale_out_cooldown = 60
+      }
+    }
+  EOF
+}
+
 dependency "vpc" {
   config_path = "../vpc"
 

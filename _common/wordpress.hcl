@@ -31,6 +31,8 @@ locals {
     # WP Offload Media uses the EKS node instance profile instead of static
     # credentials. The CDN bucket remains private and is delivered by CloudFront.
     wordpressExtraConfigContent: |
+      define('WP_CACHE', true);
+
       define( 'AS3CF_SETTINGS', serialize( array(
           'provider' => 'aws',
           'use-server-roles' => true,

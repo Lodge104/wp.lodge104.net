@@ -125,6 +125,7 @@ resource "kubernetes_manifest" "rds_secret_provider_class" {
     spec = {
       provider = "aws"
       parameters = {
+        usePodIdentity = "true"
         objects = yamlencode([
           {
             objectName = var.rds_master_user_secret_arn

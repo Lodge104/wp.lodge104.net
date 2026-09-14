@@ -9,9 +9,11 @@ locals {
   port          = 3306
   database_name = "lodge104"
 
-  # Credentials managed via AWS Secrets Manager (rotate automatically).
-  master_username              = "lodge104admin"
-  manage_master_user_password = true
+  # Credentials remain managed by AWS Secrets Manager, but rotation is disabled
+  # so consumers that sync this secret into Kubernetes do not drift.
+  master_username                          = "lodge104admin"
+  manage_master_user_password               = true
+  manage_master_user_password_rotation     = false
 
   backup_retention_period = 7
   preferred_backup_window           = "03:00-06:00"

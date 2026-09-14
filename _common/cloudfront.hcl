@@ -100,10 +100,57 @@ locals {
     cookies_forward = "none"
   }
 
+  error_page_behavior = {
+    viewer_protocol_policy = "https-only"
+    compress               = true
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    min_ttl                = 0
+    default_ttl            = 60
+    max_ttl                = 300
+    use_forwarded_values   = true
+    query_string           = false
+    cookies_forward        = "none"
+  }
+
+  error_page_origins = {
+    error_502 = {
+      domain_name = "aesthetic-brigadeiros-9506ea.netlify.app"
+    }
+    error_503 = {
+      domain_name = "elegant-squirrel-53e205.netlify.app"
+    }
+  }
+
+  custom_error_response = [
+    {
+      error_code            = 502
+      response_code         = 502
+      response_page_path    = "/502"
+      error_caching_min_ttl = 0
+    },
+    {
+      error_code            = 503
+      response_code         = 503
+      response_page_path    = "/503"
+      error_caching_min_ttl = 0
+    }
+  ]
+
   # Ordered cache behaviors implementing the strategy above. The ALB remains
   # the origin for the environment CloudFront distribution; uploads have a
   # separate CDN distribution and hostname.
   ordered_cache_behavior = concat(
+    [
+      merge(local.error_page_behavior, {
+        path_pattern     = "/502"
+        target_origin_id = "error-502"
+      }),
+      merge(local.error_page_behavior, {
+        path_pattern     = "/503"
+        target_origin_id = "error-503"
+      })
+    ],
     [
       for path_pattern in [
         "/wp-admin/*",

@@ -33,6 +33,15 @@ dependency "static_assets_cache_policy" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "waf" {
+  config_path = "../cloudfront-waf"
+
+  mock_outputs = {
+    web_acl_arn = "arn:aws:wafv2:us-east-1:123456789012:global/webacl/mock/00000000-0000-0000-0000-000000000000"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/cloudfront/aws?version=3.4.1"
 }
@@ -78,6 +87,24 @@ inputs = merge(
           origin_read_timeout      = 60
         }
       }
+      error-502 = {
+        domain_name = local.common.locals.error_page_origins.error_502.domain_name
+        custom_origin_config = {
+          http_port              = 80
+          https_port             = 443
+          origin_protocol_policy = "https-only"
+          origin_ssl_protocols   = ["TLSv1.2"]
+        }
+      }
+      error-503 = {
+        domain_name = local.common.locals.error_page_origins.error_503.domain_name
+        custom_origin_config = {
+          http_port              = 80
+          https_port             = 443
+          origin_protocol_policy = "https-only"
+          origin_ssl_protocols   = ["TLSv1.2"]
+        }
+      }
     }
 
     default_cache_behavior = merge(
@@ -98,5 +125,8 @@ inputs = merge(
         } : {}
       )
     ]
+
+    custom_error_response = local.common.locals.custom_error_response
+    web_acl_id = dependency.waf.outputs.web_acl_arn
   }
 )

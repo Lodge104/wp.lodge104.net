@@ -8,7 +8,7 @@ locals {
     general = {
       min_size       = 1
       max_size       = 10
-      desired_size   = 1
+      desired_size   = 2
       instance_types = ["m5.xlarge"]
       capacity_type  = "ON_DEMAND"
     }
@@ -33,9 +33,9 @@ locals {
   }
 
   elasticache = {
-    num_cache_nodes = 1
-    node_type       = "cache.r6g.large"
-
+    num_cache_nodes      = 1
+    node_type            = "cache.r6g.large"
+    autoscaling_max_nodes = 6
   }
 
   wordpress = {

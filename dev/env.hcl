@@ -25,8 +25,9 @@ locals {
   }
 
   elasticache = {
-    num_cache_nodes = 1
-    node_type       = "cache.t3.micro"
+    num_cache_nodes      = 1
+    node_type            = "cache.t3.micro"
+    autoscaling_max_nodes = 2
   }
 
   wordpress = {

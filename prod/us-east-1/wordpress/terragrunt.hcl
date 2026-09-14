@@ -168,6 +168,7 @@ inputs = {
     <<-YAML
       wordpressBlogName: "${local.wp_config.blog_name}"
       wordpressHost: ${local.domain}
+      wordpressSkipInstall: true
 
       # Multisite (subdomain install): the network's primary domain stays
       # ${local.env}.wp.${local.domain}. Additional network sites (e.g. the

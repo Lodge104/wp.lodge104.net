@@ -38,6 +38,15 @@ dependency "rds" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "wordpress_s3_access" {
+  config_path = "../wordpress-s3-access"
+
+  mock_outputs = {
+    policy_arn = "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 dependency "efs" {
   config_path = "../efs"
 
@@ -151,6 +160,7 @@ inputs = {
   use_secrets_store_csi_driver = true
   eks_cluster_name             = dependency.eks.outputs.cluster_name
   pod_identity_service_account = local.common.locals.release_name
+  wordpress_s3_access_policy_arn = dependency.wordpress_s3_access.outputs.policy_arn
 
   ses_smtp_credentials_secret_arn = dependency.ses.outputs.smtp_credentials_secret_arn
   ses_secret_name                 = "${local.project}-${local.env}-ses-credentials"

@@ -103,6 +103,13 @@ resource "aws_iam_role_policy" "rds_secret_reader" {
   policy = data.aws_iam_policy_document.rds_secret_read[0].json
 }
 
+resource "aws_iam_role_policy_attachment" "wordpress_s3_access" {
+  count = var.use_secrets_store_csi_driver && var.wordpress_s3_access_policy_arn != null ? 1 : 0
+
+  role       = aws_iam_role.rds_secret_reader[0].name
+  policy_arn = var.wordpress_s3_access_policy_arn
+}
+
 resource "aws_eks_pod_identity_association" "rds_secret_reader" {
   count = var.use_secrets_store_csi_driver ? 1 : 0
 

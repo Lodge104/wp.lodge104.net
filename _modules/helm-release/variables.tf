@@ -95,6 +95,12 @@ variable "pod_identity_service_account" {
   default     = null
 }
 
+variable "wordpress_s3_access_policy_arn" {
+  description = "ARN of the environment's WordPress S3 access policy to attach to the Pod Identity role."
+  type        = string
+  default     = null
+}
+
 variable "ses_smtp_credentials_secret_arn" {
   description = "ARN of the AWS Secrets Manager secret holding the SES SMTP credentials (the ses-smtp-user module's `smtp_credentials_secret_arn` output). When set, a Kubernetes Secret named `ses_secret_name` is created in `namespace` with the password under key `ses_secret_key`."
   type        = string

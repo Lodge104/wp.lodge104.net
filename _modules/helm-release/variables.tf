@@ -77,6 +77,24 @@ variable "rds_secret_key" {
   default     = "mariadb-password"
 }
 
+variable "use_secrets_store_csi_driver" {
+  description = "When true (and rds_master_user_secret_arn is set), skip the static Terraform-managed Kubernetes Secret snapshot and instead grant the release's service account access to the RDS secret via EKS Pod Identity, backed by a SecretProviderClass (AWS Secrets Store CSI Driver) that continuously syncs the current password into rds_secret_name. Requires eks_cluster_name and pod_identity_service_account."
+  type        = bool
+  default     = false
+}
+
+variable "eks_cluster_name" {
+  description = "Name of the EKS cluster to register the Pod Identity association against. Required when use_secrets_store_csi_driver is true."
+  type        = string
+  default     = null
+}
+
+variable "pod_identity_service_account" {
+  description = "Name of the Kubernetes ServiceAccount (created by the Helm chart) that reads the RDS secret via the Secrets Store CSI Driver. Required when use_secrets_store_csi_driver is true."
+  type        = string
+  default     = null
+}
+
 variable "ses_smtp_credentials_secret_arn" {
   description = "ARN of the AWS Secrets Manager secret holding the SES SMTP credentials (the ses-smtp-user module's `smtp_credentials_secret_arn` output). When set, a Kubernetes Secret named `ses_secret_name` is created in `namespace` with the password under key `ses_secret_key`."
   type        = string

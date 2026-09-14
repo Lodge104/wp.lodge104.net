@@ -35,15 +35,17 @@ resource "kubernetes_namespace_v1" "this" {
 
 # Optionally sync the RDS-managed master user password (AWS Secrets Manager)
 # into a Kubernetes Secret the chart's externalDatabase.existingSecret can
-# reference, instead of requiring it to be created manually.
+# reference, instead of requiring it to be created manually. Skipped when
+# use_secrets_store_csi_driver is true, since the SecretProviderClass below
+# owns that Secret instead (kept continuously in sync, not a static snapshot).
 data "aws_secretsmanager_secret_version" "rds_master_user" {
-  count = var.rds_master_user_secret_arn != null ? 1 : 0
+  count = var.rds_master_user_secret_arn != null && !var.use_secrets_store_csi_driver ? 1 : 0
 
   secret_id = var.rds_master_user_secret_arn
 }
 
 resource "kubernetes_secret_v1" "rds_credentials" {
-  count = var.rds_master_user_secret_arn != null ? 1 : 0
+  count = var.rds_master_user_secret_arn != null && !var.use_secrets_store_csi_driver ? 1 : 0
 
   metadata {
     name      = var.rds_secret_name
@@ -57,6 +59,95 @@ resource "kubernetes_secret_v1" "rds_credentials" {
   type = "Opaque"
 
   depends_on = [kubernetes_namespace_v1.this]
+}
+
+# When use_secrets_store_csi_driver is true, grant the release's Kubernetes
+# service account read access to the RDS secret via EKS Pod Identity, and
+# create a SecretProviderClass that mounts it and keeps rds_secret_name
+# synced to the live Secrets Manager value (survives password rotation
+# without any custom reconciliation logic or stale wp-config.php files).
+data "aws_iam_policy_document" "rds_secret_pod_identity_trust" {
+  count = var.use_secrets_store_csi_driver ? 1 : 0
+
+  statement {
+    actions = ["sts:AssumeRole", "sts:TagSession"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["pods.eks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "rds_secret_reader" {
+  count = var.use_secrets_store_csi_driver ? 1 : 0
+
+  name               = "${var.namespace}-${var.release_name}-rds-secret-reader"
+  assume_role_policy = data.aws_iam_policy_document.rds_secret_pod_identity_trust[0].json
+}
+
+data "aws_iam_policy_document" "rds_secret_read" {
+  count = var.use_secrets_store_csi_driver ? 1 : 0
+
+  statement {
+    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+    resources = [var.rds_master_user_secret_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "rds_secret_reader" {
+  count = var.use_secrets_store_csi_driver ? 1 : 0
+
+  name   = "read-rds-secret"
+  role   = aws_iam_role.rds_secret_reader[0].id
+  policy = data.aws_iam_policy_document.rds_secret_read[0].json
+}
+
+resource "aws_eks_pod_identity_association" "rds_secret_reader" {
+  count = var.use_secrets_store_csi_driver ? 1 : 0
+
+  cluster_name    = var.eks_cluster_name
+  namespace       = var.namespace
+  service_account = var.pod_identity_service_account
+  role_arn        = aws_iam_role.rds_secret_reader[0].arn
+}
+
+resource "kubernetes_manifest" "rds_secret_provider_class" {
+  count = var.use_secrets_store_csi_driver ? 1 : 0
+
+  manifest = {
+    apiVersion = "secrets-store.csi.x-k8s.io/v1"
+    kind       = "SecretProviderClass"
+    metadata = {
+      name      = "${var.release_name}-rds"
+      namespace = var.namespace
+    }
+    spec = {
+      provider = "aws"
+      parameters = {
+        objects = yamlencode([
+          {
+            objectName = var.rds_master_user_secret_arn
+            objectType = "secretsmanager"
+            jmesPath = [
+              { path = "password", objectAlias = var.rds_secret_key }
+            ]
+          }
+        ])
+      }
+      secretObjects = [
+        {
+          secretName = var.rds_secret_name
+          type       = "Opaque"
+          data = [
+            { objectName = var.rds_secret_key, key = var.rds_secret_key }
+          ]
+        }
+      ]
+    }
+  }
+
+  depends_on = [aws_eks_pod_identity_association.rds_secret_reader, kubernetes_namespace_v1.this]
 }
 
 # Generate the initial WordPress admin user (username and password) with

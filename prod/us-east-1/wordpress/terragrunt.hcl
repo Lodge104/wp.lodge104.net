@@ -146,6 +146,13 @@ inputs = {
   rds_master_user_secret_arn = dependency.rds.outputs.cluster_master_user_secret[0].secret_arn
   rds_secret_name            = "${local.project}-${local.env}-rds-credentials"
 
+  # The RDS secret is mounted via the AWS Secrets Store CSI Driver (Pod
+  # Identity) instead of a static Terraform-managed snapshot, so it stays in
+  # sync across password rotations without any custom reconciliation logic.
+  use_secrets_store_csi_driver = true
+  eks_cluster_name             = dependency.eks.outputs.cluster_name
+  pod_identity_service_account = local.common.locals.release_name
+
   ses_smtp_credentials_secret_arn = dependency.ses.outputs.smtp_credentials_secret_arn
   ses_secret_name                 = "${local.project}-${local.env}-ses-credentials"
 
@@ -257,68 +264,22 @@ inputs = {
     YAML
     ,
     <<-YAML
-      # Persisted WordPress data lives on EFS and survives RDS cluster
-      # replacements / Secrets Manager password rotations. If the DB
-      # password baked into the persisted wp-config.php no longer matches
-      # the current RDS secret, the chart's "restore" boot path fails to
-      # connect and crash-loops. This init container detects that mismatch
-      # and wipes the persisted data so the main container does a clean
-      # re-install against the current credentials instead.
+      # The RDS password is mounted via the AWS Secrets Store CSI Driver
+      # (SecretProviderClass created by the helm-release module), which keeps
+      # ${local.project}-${local.env}-rds-credentials in sync with Secrets
+      # Manager on rotation. Mounting the volume is what triggers the sync.
       extraVolumes:
-        - name: rds-credentials-check
-          secret:
-            secretName: ${local.project}-${local.env}-rds-credentials
+        - name: rds-secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: ${local.common.locals.release_name}-rds
 
-      initContainers:
-        - name: reconcile-db-password
-          image: docker.io/busybox:1.36
-          imagePullPolicy: IfNotPresent
-          command:
-            - /bin/sh
-            - -ec
-            - |
-              WP_CONFIG=/bitnami/wordpress/wp-config.php
-              CURRENT_PW="$(cat /rds-credentials/mariadb-password)"
-              if [ -f "$WP_CONFIG" ]; then
-                if grep -qF -- "$CURRENT_PW" "$WP_CONFIG"; then
-                  echo "Persisted WordPress DB password matches the current RDS secret; leaving install intact."
-                else
-                  echo "Persisted WordPress DB password is stale; updating wp-config.php in place."
-                  ESCAPED_PW="$(printf '%s' "$CURRENT_PW" | sed 's/[\\/&]/\\\\&/g')"
-                  sed -i "s|^define( 'DB_PASSWORD'.*|define( 'DB_PASSWORD', '$ESCAPED_PW' );|" "$WP_CONFIG"
-                fi
-              else
-                echo "No persisted wp-config.php found; recreating it for the existing multisite database."
-                cat > "$WP_CONFIG" <<EOF
-              <?php
-              define( 'DB_NAME', 'lodge104' );
-              define( 'DB_USER', 'lodge104admin' );
-              define( 'DB_PASSWORD', '$CURRENT_PW' );
-              define( 'DB_HOST', 'net-lodge104-wp-prod.cluster-c1hef1pcdszl.us-east-1.rds.amazonaws.com:3306' );
-              define( 'DB_CHARSET', 'utf8mb4' );
-              define( 'DB_COLLATE', '' );
-              \$table_prefix = 'wp_';
-              define( 'MULTISITE', true );
-              define( 'SUBDOMAIN_INSTALL', true );
-              define( 'DOMAIN_CURRENT_SITE', 'lodge104.net' );
-              define( 'PATH_CURRENT_SITE', '/' );
-              define( 'SITE_ID_CURRENT_SITE', 1 );
-              define( 'BLOG_ID_CURRENT_SITE', 1 );
-              define( 'WP_CACHE', true );
-              define( 'AS3CF_SETTINGS', serialize( array( 'provider' => 'aws', 'use-server-roles' => true ) ) );
-              if ( ! defined( 'ABSPATH' ) ) {
-                define( 'ABSPATH', __DIR__ . '/' );
-              }
-              require_once ABSPATH . 'wp-settings.php';
-              EOF
-              fi
-          volumeMounts:
-            - name: wordpress-data
-              mountPath: /bitnami/wordpress
-              subPath: wordpress
-            - name: rds-credentials-check
-              mountPath: /rds-credentials
-              readOnly: true
+      extraVolumeMounts:
+        - name: rds-secrets-store
+          mountPath: /mnt/secrets-store/rds
+          readOnly: true
     YAML
   ]
 }

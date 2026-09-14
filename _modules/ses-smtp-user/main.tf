@@ -28,8 +28,12 @@ data "aws_iam_policy_document" "send_email" {
     # SMTP authentication only ever exercises ses:SendRawEmail; SendEmail is
     # intentionally omitted to keep this IAM user scoped to what WordPress's
     # SMTP integration actually needs.
-    actions   = ["ses:SendRawEmail"]
-    resources = [local.identity_arn]
+    actions = ["ses:SendRawEmail"]
+    resources = [
+      local.identity_arn,
+      "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/support@${var.domain}",
+      "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/tradingpost@${var.domain}",
+    ]
   }
 
   statement {

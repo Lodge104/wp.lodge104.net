@@ -105,6 +105,15 @@ inputs = merge(
           origin_ssl_protocols   = ["TLSv1.2"]
         }
       }
+      apple = {
+        domain_name = "lodge104-apple.s3.us-east-1.amazonaws.com"
+        custom_origin_config = {
+          http_port              = 80
+          https_port             = 443
+          origin_protocol_policy = "https-only"
+          origin_ssl_protocols   = ["TLSv1.2"]
+        }
+      }
     }
 
     default_cache_behavior = merge(
@@ -117,14 +126,20 @@ inputs = merge(
     # Force long-lived Cache-Control on the static-asset behaviors (max_ttl
     # already set to a year in _common/cloudfront.hcl); leave the always-
     # dynamic no-cache behaviors (max_ttl = 0) untouched.
-    ordered_cache_behavior = [
+    ordered_cache_behavior = concat(
+      [merge(local.common.locals.error_page_behavior, {
+        path_pattern     = "/.well-known/*"
+        target_origin_id = "apple"
+      })],
+      [
       for behavior in local.common.locals.ordered_cache_behavior : merge(
         behavior,
         lookup(behavior, "max_ttl", 0) >= 86400 ? {
           response_headers_policy_id = dependency.static_assets_cache_policy.outputs.id
         } : {}
       )
-    ]
+      ]
+    )
 
     custom_error_response = local.common.locals.custom_error_response
     web_acl_id = dependency.waf.outputs.web_acl_arn

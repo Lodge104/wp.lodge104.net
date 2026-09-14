@@ -216,6 +216,8 @@ inputs = {
           alb.ingress.kubernetes.io/certificate-arn: "${dependency.acm.outputs.acm_certificate_arn}"
           alb.ingress.kubernetes.io/security-groups: "${dependency.alb_security_group.outputs.id}"
           alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
+          alb.ingress.kubernetes.io/load-balancer-attributes: "idle_timeout.timeout_seconds=120,routing.http2.enabled=true"
+          alb.ingress.kubernetes.io/target-group-attributes: "stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=86400,load_balancing.algorithm.type=least_outstanding_requests"
         # CloudFront forwards the viewer Host header for dynamic Multisite
         # behaviors, but some cache behaviors (for example static assets)
         # still use the origin domain as Host, so the ALB needs a matching

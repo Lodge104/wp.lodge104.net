@@ -33,6 +33,7 @@ data "aws_iam_policy_document" "send_email" {
       local.identity_arn,
       "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/support@${var.domain}",
       "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/tradingpost@${var.domain}",
+      "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:configuration-set/${var.configuration_set_name}",
     ]
   }
 

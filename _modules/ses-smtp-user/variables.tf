@@ -18,6 +18,12 @@ variable "secret_name" {
   type        = string
 }
 
+variable "configuration_set_name" {
+  description = "SES configuration set the SMTP user may use when sending mail."
+  type        = string
+  default     = "lodge104-ses"
+}
+
 variable "secret_recovery_window_in_days" {
   description = "Number of days AWS Secrets Manager waits before permanently deleting the SMTP credentials secret after destruction. Set to 0 to delete immediately (useful for ephemeral/dev environments)."
   type        = number

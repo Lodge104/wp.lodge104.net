@@ -31,6 +31,8 @@ locals {
     # WP Offload Media uses the EKS node instance profile instead of static
     # credentials. The CDN bucket remains private and is delivered by CloudFront.
     wordpressExtraConfigContent: |
+      define('WP_CACHE', true);
+
       define( 'AS3CF_SETTINGS', serialize( array(
           'provider' => 'aws',
           'use-server-roles' => true,
@@ -62,14 +64,18 @@ locals {
       accessModes:
         - ReadWriteMany
 
-    # The default readinessProbe targets the port named after wordpressScheme
-    # (here "https" -> 8443), but Apache never actually terminates TLS -- the
-    # ALB does that and forwards plain HTTP to the pod. Point the probe at
-    # the real listening port instead, otherwise it never becomes Ready.
-    # readinessProbe:
-    #   httpGet:
-    #     port: http
-    #     scheme: HTTP
+    # The ALB terminates TLS and forwards plain HTTP to the pod; keep health
+    # probes on the actual in-pod HTTP listener to avoid slow/unreliable pod
+    # readiness during scale-out.
+    readinessProbe:
+      httpGet:
+        port: http
+        scheme: HTTP
+    startupProbe:
+      enabled: true
+      httpGet:
+        port: http
+        scheme: HTTP
 
     # Native chart multisite support (maps to WORDPRESS_ENABLE_MULTISITE and
     # friends). Unlike hand-rolling the MULTISITE/DOMAIN_CURRENT_SITE

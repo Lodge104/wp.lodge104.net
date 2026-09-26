@@ -77,30 +77,28 @@ variable "rds_secret_key" {
   default     = "mariadb-password"
 }
 
-variable "ses_smtp_credentials_secret_arn" {
-  description = "ARN of the AWS Secrets Manager secret holding the SES SMTP credentials (the ses-smtp-user module's `smtp_credentials_secret_arn` output). When set, a Kubernetes Secret named `ses_secret_name` is created in `namespace` with the password under key `ses_secret_key`."
+variable "use_secrets_store_csi_driver" {
+  description = "When true (and rds_master_user_secret_arn is set), skip the static Terraform-managed Kubernetes Secret snapshot and instead grant the release's service account access to the RDS secret via EKS Pod Identity, backed by a SecretProviderClass (AWS Secrets Store CSI Driver) that continuously syncs the current password into rds_secret_name. Requires eks_cluster_name and pod_identity_service_account."
+  type        = bool
+  default     = false
+}
+
+variable "eks_cluster_name" {
+  description = "Name of the EKS cluster to register the Pod Identity association against. Required when use_secrets_store_csi_driver is true."
   type        = string
   default     = null
 }
 
-variable "ses_secret_name" {
-  description = "Name of the Kubernetes Secret to create from the SES SMTP credentials secret. Required when `ses_smtp_credentials_secret_arn` is set."
+variable "pod_identity_service_account" {
+  description = "Name of the Kubernetes ServiceAccount (created by the Helm chart) that reads the RDS secret via the Secrets Store CSI Driver. Required when use_secrets_store_csi_driver is true."
   type        = string
   default     = null
-
-  validation {
-    condition     = var.ses_smtp_credentials_secret_arn == null || coalesce(var.ses_secret_name, "") != ""
-    error_message = "When ses_smtp_credentials_secret_arn is set, ses_secret_name must be a non-empty string."
-  }
 }
 
-variable "ses_secret_key" {
-  # The Bitnami WordPress chart's smtpExistingSecret must contain a key
-  # named "smtp-password" -- see
-  # https://github.com/bitnami/charts/tree/main/bitnami/wordpress#parameters
-  description = "Key within the created Kubernetes Secret's data map that holds the SES SMTP password. Must be \"smtp-password\" for the Bitnami WordPress chart's smtpExistingSecret to find it, unless the chart changes this requirement."
+variable "wordpress_s3_access_policy_arn" {
+  description = "ARN of the environment's WordPress S3 access policy to attach to the Pod Identity role."
   type        = string
-  default     = "smtp-password"
+  default     = null
 }
 
 variable "create_wordpress_admin_credentials" {

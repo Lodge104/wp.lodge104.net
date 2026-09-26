@@ -38,6 +38,15 @@ dependency "rds" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "wordpress_s3_access" {
+  config_path = "../wordpress-s3-access"
+
+  mock_outputs = {
+    policy_arn = "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 dependency "efs" {
   config_path = "../efs"
 
@@ -90,6 +99,8 @@ dependency "ses" {
   mock_outputs = {
     smtp_username               = "mock-smtp-username"
     smtp_credentials_secret_arn = "arn:aws:secretsmanager:${local.region}:000000000000:secret:mock-ses-xxxxxx"
+    access_key_id               = "AKIAIOSFODNN7EXAMPLE"
+    secret_access_key           = "mock-secret-access-key"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -145,8 +156,13 @@ inputs = {
   rds_master_user_secret_arn = dependency.rds.outputs.cluster_master_user_secret[0].secret_arn
   rds_secret_name            = "${local.project}-${local.env}-rds-credentials"
 
-  ses_smtp_credentials_secret_arn = dependency.ses.outputs.smtp_credentials_secret_arn
-  ses_secret_name                 = "${local.project}-${local.env}-ses-credentials"
+  # The RDS secret is mounted via the AWS Secrets Store CSI Driver (Pod
+  # Identity) instead of a static Terraform-managed snapshot, so it stays in
+  # sync across password rotations without any custom reconciliation logic.
+  use_secrets_store_csi_driver = true
+  eks_cluster_name             = dependency.eks.outputs.cluster_name
+  pod_identity_service_account = local.common.locals.release_name
+  wordpress_s3_access_policy_arn = dependency.wordpress_s3_access.outputs.policy_arn
 
   create_wordpress_admin_credentials = true
   wordpress_admin_secret_name        = "${local.project}-${local.env}-wordpress-admin-credentials"
@@ -184,15 +200,14 @@ inputs = {
 
       wordpressConfigureCache: true
 
-      # SES SMTP credentials, generated with terraform (see ../ses). The
-      # domain identity and its DKIM/SPF/DMARC DNS records are assumed to
-      # already be verified in this account.
-      smtpHost: "email-smtp.${local.region}.amazonaws.com"
-      smtpPort: "587"
-      smtpUser: "${dependency.ses.outputs.smtp_username}"
-      smtpProtocol: "tls"
-      smtpFromEmail: "wordpress@${local.domain}"
-      smtpExistingSecret: "${local.project}-${local.env}-ses-credentials"
+      wordpressExtraConfigContent: |
+        define( 'WP_CACHE', true );
+        define( 'AS3CF_SETTINGS', serialize( array(
+            'provider' => 'aws',
+            'use-server-roles' => true,
+        ) ) );
+        define( 'FLUENTMAIL_AWS_ACCESS_KEY_ID', '${dependency.ses.outputs.access_key_id}' );
+        define( 'FLUENTMAIL_AWS_SECRET_ACCESS_KEY', '${dependency.ses.outputs.secret_access_key}' );
 
       ingress:
         hostname: ${local.env}.wp.${local.domain}
@@ -216,6 +231,8 @@ inputs = {
           alb.ingress.kubernetes.io/certificate-arn: "${dependency.acm.outputs.acm_certificate_arn}"
           alb.ingress.kubernetes.io/security-groups: "${dependency.alb_security_group.outputs.id}"
           alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
+          alb.ingress.kubernetes.io/load-balancer-attributes: "idle_timeout.timeout_seconds=120,routing.http2.enabled=true"
+          alb.ingress.kubernetes.io/target-group-attributes: "stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=86400,load_balancing.algorithm.type=least_outstanding_requests"
         # CloudFront forwards the viewer Host header for dynamic Multisite
         # behaviors, but some cache behaviors (for example static assets)
         # still use the origin domain as Host, so the ALB needs a matching
@@ -233,45 +250,22 @@ inputs = {
     YAML
     ,
     <<-YAML
-      # Persisted WordPress data lives on EFS and survives RDS cluster
-      # replacements / Secrets Manager password rotations. If the DB
-      # password baked into the persisted wp-config.php no longer matches
-      # the current RDS secret, the chart's "restore" boot path fails to
-      # connect and crash-loops. This init container detects that mismatch
-      # and wipes the persisted data so the main container does a clean
-      # re-install against the current credentials instead.
+      # The RDS password is mounted via the AWS Secrets Store CSI Driver
+      # (SecretProviderClass created by the helm-release module), which keeps
+      # ${local.project}-${local.env}-rds-credentials in sync with Secrets
+      # Manager on rotation. Mounting the volume is what triggers the sync.
       extraVolumes:
-        - name: rds-credentials-check
-          secret:
-            secretName: ${local.project}-${local.env}-rds-credentials
+        - name: rds-secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: ${local.common.locals.release_name}-rds
 
-      initContainers:
-        - name: reconcile-db-password
-          image: docker.io/busybox:1.36
-          imagePullPolicy: IfNotPresent
-          command:
-            - /bin/sh
-            - -ec
-            - |
-              WP_CONFIG=/bitnami/wordpress/wp-config.php
-              CURRENT_PW="$(cat /rds-credentials/mariadb-password)"
-              if [ -f "$WP_CONFIG" ]; then
-                if grep -qF -- "$CURRENT_PW" "$WP_CONFIG"; then
-                  echo "Persisted WordPress DB password matches the current RDS secret; leaving install intact."
-                else
-                  echo "Persisted WordPress DB password is stale (RDS secret has rotated/changed) -- wiping persisted data for a clean re-install."
-                  find /bitnami/wordpress -mindepth 1 -exec rm -rf {} + 2>/dev/null || true
-                fi
-              else
-                echo "No persisted wp-config.php found; nothing to reconcile."
-              fi
-          volumeMounts:
-            - name: wordpress-data
-              mountPath: /bitnami/wordpress
-              subPath: wordpress
-            - name: rds-credentials-check
-              mountPath: /rds-credentials
-              readOnly: true
+      extraVolumeMounts:
+        - name: rds-secrets-store
+          mountPath: /mnt/secrets-store/rds
+          readOnly: true
     YAML
   ]
 }

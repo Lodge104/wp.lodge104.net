@@ -1,17 +1,17 @@
 # Common CloudFront defaults – override in each env's terragrunt.hcl as needed.
 #
-# Caching strategy tuned for WordPress (bitnami/wordpress served behind the
-# ALB origin, no server-side full-page cache plugin installed):
+# Caching strategy tuned for WordPress/WooCommerce (bitnami/wordpress served
+# behind the ALB origin, no server-side full-page cache plugin installed):
 #   - Default behavior handles front-end HTML/REST/comment-post traffic. It
 #     must allow write methods (WordPress uses POST for comments,
 #     admin-ajax fallbacks and the REST API) and must NOT share cached pages
 #     between anonymous and logged-in/commenting visitors, so it forwards
-#     the auth/state cookies WordPress relies on (wildcards match the
-#     per-install hashed cookie names) and forwards query strings (preview,
-#     search, pagination links all depend on them). default_ttl is left at
-#     0 so CloudFront only caches when WordPress/a plugin explicitly sends
-#     Cache-Control/Expires headers; max_ttl caps how long such a response
-#     can be reused.
+#     the auth/state cookies WordPress/WooCommerce relies on (wildcards
+#     match per-install hashed cookie names) and forwards query strings
+#     (preview, search, pagination links all depend on them). default_ttl is
+#     set to a short micro-cache window for anonymous navigation latency
+#     improvements while still allowing origin cache headers to take
+#     precedence.
 #   - wp-admin/wp-login/xmlrpc are always dynamic and session-specific, so
 #     they're fully excluded from caching and forward everything to origin.
 #   - Static assets (uploads, core/theme/plugin files) are safe to cache
@@ -31,7 +31,7 @@ locals {
     cached_methods         = ["GET", "HEAD"]
 
     min_ttl     = 0
-    default_ttl = 0
+    default_ttl = 30
     max_ttl     = 86400
 
     use_forwarded_values = true
@@ -49,14 +49,19 @@ locals {
     cookies_whitelisted_names = [
       "comment_author_*",
       "wordpress_logged_in_*",
+      "wordpress_sec_*",
       "wordpress_no_cache",
-      "wordpress_test_cookie",
       "wp-settings-*",
+      "wp_woocommerce_session_*",
+      "woocommerce_cart_hash",
+      "woocommerce_items_in_cart",
+      "woocommerce_recently_viewed",
+      "AWSALB*",
     ]
   }
 
-  # No-cache passthrough for always-dynamic, session-specific WordPress
-  # endpoints – never share these responses between visitors.
+  # No-cache passthrough for always-dynamic, session-specific WordPress and
+  # WooCommerce endpoints – never share these responses between visitors.
   wordpress_no_cache_behavior = {
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
@@ -95,15 +100,67 @@ locals {
     cookies_forward = "none"
   }
 
+  error_page_behavior = {
+    viewer_protocol_policy = "https-only"
+    compress               = true
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    min_ttl                = 0
+    default_ttl            = 60
+    max_ttl                = 300
+    use_forwarded_values   = true
+    query_string           = false
+    cookies_forward        = "none"
+  }
+
+  error_page_origins = {
+    error_502 = {
+      domain_name = "aesthetic-brigadeiros-9506ea.netlify.app"
+    }
+    error_503 = {
+      domain_name = "elegant-squirrel-53e205.netlify.app"
+    }
+  }
+
+  custom_error_response = [
+    {
+      error_code            = 502
+      response_code         = 502
+      response_page_path    = "/502"
+      error_caching_min_ttl = 0
+    },
+    {
+      error_code            = 503
+      response_code         = 503
+      response_page_path    = "/503"
+      error_caching_min_ttl = 0
+    }
+  ]
+
   # Ordered cache behaviors implementing the strategy above. The ALB remains
   # the origin for the environment CloudFront distribution; uploads have a
   # separate CDN distribution and hostname.
   ordered_cache_behavior = concat(
     [
+      merge(local.error_page_behavior, {
+        path_pattern     = "/502"
+        target_origin_id = "error-502"
+      }),
+      merge(local.error_page_behavior, {
+        path_pattern     = "/503"
+        target_origin_id = "error-503"
+      })
+    ],
+    [
       for path_pattern in [
         "/wp-admin/*",
         "/wp-login.php",
         "/xmlrpc.php",
+        "/wp-json/*",
+        "/wc-api/*",
+        "/cart*",
+        "/checkout*",
+        "/my-account*",
         ] : merge(local.wordpress_no_cache_behavior, {
         path_pattern     = path_pattern
         target_origin_id = "alb"

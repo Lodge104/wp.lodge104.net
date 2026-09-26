@@ -33,14 +33,9 @@ dependency "rds" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
-dependency "elasticache" {
-  config_path = "../elasticache"
-
-  mock_outputs = {
-    cluster_address = "${local.project}-${local.env}.xxxxxx.cfg.${local.region}.cache.amazonaws.com"
-  }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
-}
+# ElastiCache dependency and "cache" record removed -- WordPress now uses
+# the in-cluster Memcached sub-chart instead of the managed ElastiCache
+# service. See issue #32.
 
 terraform {
   source = "tfr:///terraform-aws-modules/route53/aws?version=6.5.0"
@@ -60,12 +55,6 @@ inputs = merge(
         type    = "CNAME"
         ttl     = 300
         records = [dependency.rds.outputs.cluster_endpoint]
-      }
-      cache = {
-        name    = "cache"
-        type    = "CNAME"
-        ttl     = 300
-        records = [dependency.elasticache.outputs.cluster_address]
       }
     }
   }

@@ -9,7 +9,9 @@ locals {
       min_size       = 0
       max_size       = 1
       desired_size   = 0
-      instance_types = ["t3.large"]
+      # Graviton -- matches the arm64 AMI default in _common/eks.hcl. See
+      # issue #32.
+      instance_types = ["t4g.large"]
       capacity_type  = "ON_DEMAND"
     }
   }
@@ -24,11 +26,9 @@ locals {
     max_capacity = 16
   }
 
-  elasticache = {
-    num_cache_nodes      = 1
-    node_type            = "cache.t3.small"
-    autoscaling_max_nodes = 2
-  }
+  # ElastiCache block removed -- WordPress now uses the in-cluster
+  # Memcached sub-chart instead of the managed ElastiCache service. See
+  # issue #32.
 
   wordpress = {
     blog_name                 = "Lodge104 (Test)"

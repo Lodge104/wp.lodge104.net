@@ -53,6 +53,12 @@ inputs = merge(
 
     eks_managed_node_groups = {
       for name, group in local.env_vars.locals.eks_node_groups : name => merge(group, {
+        # terraform-aws-modules/eks/aws v21 removed the
+        # eks_managed_node_group_defaults merge behavior from the root
+        # module -- ami_type must be set explicitly per group or it
+        # silently falls back to the module's own default
+        # (AL2023_x86_64_STANDARD), which breaks Graviton instance types.
+        ami_type          = local.common.locals.eks_managed_node_group_defaults.ami_type
         metadata_options = local.common.locals.eks_managed_node_group_defaults.metadata_options
         iam_role_additional_policies = merge(
           local.common.locals.eks_managed_node_group_defaults.iam_role_additional_policies,

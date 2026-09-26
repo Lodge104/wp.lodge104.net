@@ -109,13 +109,17 @@ inputs = merge(
       }
       apple = {
         domain_name           = "lodge104-apple.s3.us-east-1.amazonaws.com"
-        origin_access_control = "apple"
+        origin_access_control = "apple-${local.env}"
       }
     }
 
     create_origin_access_control = true
     origin_access_control = {
-      apple = {
+      # Name is env-scoped: CloudFront Origin Access Control names are
+      # unique per account/region (not per distribution), so a bare
+      # "apple" collides across dev/test/prod (409
+      # OriginAccessControlAlreadyExists).
+      "apple-${local.env}" = {
         description      = "CloudFront access to lodge104-apple"
         origin_type      = "s3"
         signing_behavior = "always"

@@ -24,4 +24,5 @@ inputs = {
   domain      = local.domain
   region      = local.region
   secret_name = "${local.project}-${local.env}-ses-credentials"
+  configuration_set_name = "lodge104-ses"
 }

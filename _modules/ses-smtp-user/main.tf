@@ -28,8 +28,19 @@ data "aws_iam_policy_document" "send_email" {
     # SMTP authentication only ever exercises ses:SendRawEmail; SendEmail is
     # intentionally omitted to keep this IAM user scoped to what WordPress's
     # SMTP integration actually needs.
-    actions   = ["ses:SendRawEmail"]
-    resources = [local.identity_arn]
+    actions = ["ses:SendRawEmail"]
+    resources = [
+      local.identity_arn,
+      "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/support@${var.domain}",
+      "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/tradingpost@${var.domain}",
+      "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:configuration-set/${var.configuration_set_name}",
+    ]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ses:ListIdentities"]
+    resources = ["*"]
   }
 }
 
@@ -55,7 +66,9 @@ resource "aws_secretsmanager_secret" "smtp_credentials" {
 resource "aws_secretsmanager_secret_version" "smtp_credentials" {
   secret_id = aws_secretsmanager_secret.smtp_credentials.id
   secret_string = jsonencode({
-    username = aws_iam_access_key.smtp.id
-    password = aws_iam_access_key.smtp.ses_smtp_password_v4
+    username          = aws_iam_access_key.smtp.id
+    password          = aws_iam_access_key.smtp.ses_smtp_password_v4
+    access_key_id     = aws_iam_access_key.smtp.id
+    secret_access_key = aws_iam_access_key.smtp.secret
   })
 }

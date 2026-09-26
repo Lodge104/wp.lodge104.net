@@ -6,9 +6,9 @@ locals {
 
   eks_node_groups = {
     general = {
-      min_size       = 1
-      max_size       = 4
-      desired_size   = 2
+      min_size       = 0
+      max_size       = 1
+      desired_size   = 0
       instance_types = ["t3.large"]
       capacity_type  = "ON_DEMAND"
     }
@@ -20,22 +20,23 @@ locals {
   }
 
   rds_scaling = {
-    min_capacity = 0.5
+    min_capacity = 0
     max_capacity = 16
   }
 
   elasticache = {
-    num_cache_nodes = 2
-    node_type       = "cache.t3.small"
+    num_cache_nodes      = 1
+    node_type            = "cache.t3.small"
+    autoscaling_max_nodes = 2
   }
 
   wordpress = {
     blog_name                 = "Lodge104 (Test)"
-    replica_count             = 2
+    replica_count             = 0
     resources_preset          = "medium"
     persistence_size          = "10Gi"
     pdb_create                = true
-    pdb_min_available         = 1
+    pdb_min_available         = 0
     pod_anti_affinity_preset  = "hard"
   }
 }

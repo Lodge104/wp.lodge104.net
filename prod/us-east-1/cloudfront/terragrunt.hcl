@@ -24,6 +24,24 @@ dependency "acm" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "static_assets_cache_policy" {
+  config_path = "../cloudfront-cache-policy"
+
+  mock_outputs = {
+    id = "mock-response-headers-policy-id"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
+dependency "waf" {
+  config_path = "../cloudfront-waf"
+
+  mock_outputs = {
+    web_acl_arn = "arn:aws:wafv2:us-east-1:123456789012:global/webacl/mock/00000000-0000-0000-0000-000000000000"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/cloudfront/aws?version=3.4.1"
 }
@@ -59,11 +77,47 @@ inputs = merge(
         # is never covered by.
         domain_name = "origin.${local.env}.wp.${local.domain}"
         custom_origin_config = {
+          http_port                = 80
+          https_port               = 443
+          origin_protocol_policy   = "https-only"
+          origin_ssl_protocols     = ["TLSv1.2"]
+          # Reuse persistent connections to the ALB instead of a fresh
+          # TCP+TLS handshake per cache-miss request (AWS max is 60s).
+          origin_keepalive_timeout = 60
+          origin_read_timeout      = 60
+        }
+      }
+      error-502 = {
+        domain_name = local.common.locals.error_page_origins.error_502.domain_name
+        custom_origin_config = {
           http_port              = 80
           https_port             = 443
           origin_protocol_policy = "https-only"
           origin_ssl_protocols   = ["TLSv1.2"]
         }
+      }
+      error-503 = {
+        domain_name = local.common.locals.error_page_origins.error_503.domain_name
+        custom_origin_config = {
+          http_port              = 80
+          https_port             = 443
+          origin_protocol_policy = "https-only"
+          origin_ssl_protocols   = ["TLSv1.2"]
+        }
+      }
+      apple = {
+        domain_name = "lodge104-apple.s3.us-east-1.amazonaws.com"
+        origin_access_control = "apple"
+      }
+    }
+
+    create_origin_access_control = true
+    origin_access_control = {
+      apple = {
+        description      = "CloudFront access to lodge104-apple"
+        origin_type      = "s3"
+        signing_behavior = "always"
+        signing_protocol = "sigv4"
       }
     }
 
@@ -73,5 +127,26 @@ inputs = merge(
         target_origin_id = "alb"
       }
     )
+
+    # Force long-lived Cache-Control on the static-asset behaviors (max_ttl
+    # already set to a year in _common/cloudfront.hcl); leave the always-
+    # dynamic no-cache behaviors (max_ttl = 0) untouched.
+    ordered_cache_behavior = concat(
+      [merge(local.common.locals.error_page_behavior, {
+        path_pattern     = "/.well-known/*"
+        target_origin_id = "apple"
+      })],
+      [
+      for behavior in local.common.locals.ordered_cache_behavior : merge(
+        behavior,
+        lookup(behavior, "max_ttl", 0) >= 86400 ? {
+          response_headers_policy_id = dependency.static_assets_cache_policy.outputs.id
+        } : {}
+      )
+      ]
+    )
+
+    custom_error_response = local.common.locals.custom_error_response
+    web_acl_id = dependency.waf.outputs.web_acl_arn
   }
 )

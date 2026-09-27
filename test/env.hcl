@@ -6,13 +6,13 @@ locals {
 
   eks_node_groups = {
     general = {
-      min_size       = 0
-      max_size       = 1
-      desired_size   = 0
+      min_size       = 2
+      max_size       = 3
+      desired_size   = 2
       # Graviton -- matches the arm64 AMI default in _common/eks.hcl. See
       # issue #32.
-      instance_types = ["t4g.large"]
-      capacity_type  = "ON_DEMAND"
+      instance_types = ["t4g.medium"]
+      capacity_type  = "SPOT"
     }
   }
 

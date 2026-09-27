@@ -32,13 +32,13 @@ locals {
 
   wordpress = {
     blog_name                 = "Lodge104 (Test)"
-    replica_count             = 0
+    replica_count             = 2
     resources_preset          = "medium"
     # Matches the existing bound PVC. Kubernetes can't shrink a bound PVC, so
     # this can only go up. On EFS the size isn't enforced and doesn't affect cost.
     persistence_size          = "20Gi"
     pdb_create                = true
-    pdb_min_available         = 0
+    pdb_min_available         = 1
     pod_anti_affinity_preset  = "hard"
   }
 }

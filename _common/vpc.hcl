@@ -9,6 +9,9 @@ locals {
   enable_flow_log                      = true
   create_flow_log_cloudwatch_log_group = true
   create_flow_log_cloudwatch_iam_role  = true
+  # Bound the flow log CloudWatch Logs group's storage cost -- default
+  # (module) behavior retains logs indefinitely.
+  flow_log_cloudwatch_log_group_retention_in_days = 14
 
   # Subnet tags required for EKS auto-discovery
   public_subnet_tags = {

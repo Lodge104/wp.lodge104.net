@@ -59,8 +59,10 @@ inputs = merge(
       "store.${local.domain}",
     ]
 
-    # Prod: all edge locations for lowest latency globally
-    price_class = "PriceClass_All"
+    # PriceClass_100 (US/Canada/Europe) instead of all edge locations --
+    # cost optimization, see issue #32. Revisit if global latency becomes
+    # a real issue.
+    price_class = "PriceClass_100"
 
     viewer_certificate = {
       acm_certificate_arn      = dependency.acm.outputs.acm_certificate_arn
@@ -77,10 +79,10 @@ inputs = merge(
         # is never covered by.
         domain_name = "origin.${local.env}.wp.${local.domain}"
         custom_origin_config = {
-          http_port                = 80
-          https_port               = 443
-          origin_protocol_policy   = "https-only"
-          origin_ssl_protocols     = ["TLSv1.2"]
+          http_port              = 80
+          https_port             = 443
+          origin_protocol_policy = "https-only"
+          origin_ssl_protocols   = ["TLSv1.2"]
           # Reuse persistent connections to the ALB instead of a fresh
           # TCP+TLS handshake per cache-miss request (AWS max is 60s).
           origin_keepalive_timeout = 60
@@ -106,14 +108,18 @@ inputs = merge(
         }
       }
       apple = {
-        domain_name = "lodge104-apple.s3.us-east-1.amazonaws.com"
-        origin_access_control = "apple"
+        domain_name           = "lodge104-apple.s3.us-east-1.amazonaws.com"
+        origin_access_control = "apple-${local.env}"
       }
     }
 
     create_origin_access_control = true
     origin_access_control = {
-      apple = {
+      # Name is env-scoped: CloudFront Origin Access Control names are
+      # unique per account/region (not per distribution), so a bare
+      # "apple" collides across dev/test/prod (409
+      # OriginAccessControlAlreadyExists).
+      "apple-${local.env}" = {
         description      = "CloudFront access to lodge104-apple"
         origin_type      = "s3"
         signing_behavior = "always"
@@ -137,16 +143,16 @@ inputs = merge(
         target_origin_id = "apple"
       })],
       [
-      for behavior in local.common.locals.ordered_cache_behavior : merge(
-        behavior,
-        lookup(behavior, "max_ttl", 0) >= 86400 ? {
-          response_headers_policy_id = dependency.static_assets_cache_policy.outputs.id
-        } : {}
-      )
+        for behavior in local.common.locals.ordered_cache_behavior : merge(
+          behavior,
+          lookup(behavior, "max_ttl", 0) >= 86400 ? {
+            response_headers_policy_id = dependency.static_assets_cache_policy.outputs.id
+          } : {}
+        )
       ]
     )
 
     custom_error_response = local.common.locals.custom_error_response
-    web_acl_id = dependency.waf.outputs.web_acl_arn
+    web_acl_id            = dependency.waf.outputs.web_acl_arn
   }
 )

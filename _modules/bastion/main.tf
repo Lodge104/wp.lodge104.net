@@ -27,7 +27,7 @@ locals {
   bastion_vpc_id         = try(local.existing_vpcs_by_name[local.preferred_bastion_vpc_name].id, null)
   bastion_vpc_cidr_block = try(local.existing_vpcs_by_name[local.preferred_bastion_vpc_name].cidr_block, null)
 
-  bastion_subnet_ids = local.bastion_vpc_id == null ? [] : sort(data.aws_subnets.bastion_private[0].ids)
+  bastion_subnet_ids = local.bastion_vpc_id == null ? [] : sort(data.aws_subnets.bastion_public[0].ids)
   create_bastion     = local.bastion_vpc_id != null && length(local.bastion_subnet_ids) > 0
 
   peer_vpcs = {
@@ -94,7 +94,8 @@ locals {
 }
 
 data "aws_ssm_parameter" "al2023_ami" {
-  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+  # arm64 AMI to match the Graviton (t4g) instance_type -- see issue #32.
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64"
 }
 
 data "aws_vpcs" "env" {
@@ -109,7 +110,7 @@ data "aws_vpc" "discovered" {
   id       = each.value
 }
 
-data "aws_subnets" "bastion_private" {
+data "aws_subnets" "bastion_public" {
   count = local.bastion_vpc_id == null ? 0 : 1
 
   filter {
@@ -118,7 +119,7 @@ data "aws_subnets" "bastion_private" {
   }
 
   filter {
-    name   = "tag:kubernetes.io/role/internal-elb"
+    name   = "tag:kubernetes.io/role/elb"
     values = ["1"]
   }
 }
@@ -318,7 +319,12 @@ resource "aws_instance" "bastion" {
   iam_instance_profile        = aws_iam_instance_profile.bastion[0].name
   user_data_replace_on_change = true
 
-  associate_public_ip_address = false
+  # NAT Gateway removed from the VPCs (see issue #32) -- the bastion now
+  # runs in a public subnet and needs a public IP for outbound internet
+  # access (SSM agent, package updates, EFS utils installer, etc.).
+  # Inbound access remains SSM-only via the security group below (no
+  # ingress rules), so this does not expose an open port to the internet.
+  associate_public_ip_address = true
 
   metadata_options {
     http_endpoint               = "enabled"

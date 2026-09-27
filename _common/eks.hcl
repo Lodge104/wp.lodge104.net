@@ -13,7 +13,10 @@ locals {
 
   # Default node group settings shared across envs; instance_types overridden per env.
   eks_managed_node_group_defaults = {
-    ami_type                              = "AL2023_x86_64_STANDARD"
+    # Graviton (arm64) -- cheaper per-vCPU/GiB than x86 for the same
+    # workload; the WordPress image and EKS add-ons below all publish
+    # arm64 variants. See issue #32.
+    ami_type                              = "AL2023_ARM_64_STANDARD"
     attach_cluster_primary_security_group = true
     # WP Offload Media uses the worker instance profile via IMDSv2. A hop
     # limit of 2 allows pod network namespaces to reach IMDS while keeping

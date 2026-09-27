@@ -82,7 +82,13 @@ data "aws_iam_policy_document" "rds_secret_pod_identity_trust" {
 resource "aws_iam_role" "rds_secret_reader" {
   count = var.use_secrets_store_csi_driver ? 1 : 0
 
-  name               = "${var.namespace}-${var.release_name}-rds-secret-reader"
+  # IAM role names are account-wide unique (no region scoping), but
+  # namespace/release_name are identical across every environment (they
+  # come from the shared _common/wordpress.hcl), which caused an
+  # EntityAlreadyExists collision the moment a second environment tried to
+  # create this role. eks_cluster_name is already env-scoped (e.g.
+  # net-lodge104-wp-test vs. net-lodge104-wp-prod), so fold it in here.
+  name               = "${var.eks_cluster_name}-${var.namespace}-${var.release_name}-rds-secret-reader"
   assume_role_policy = data.aws_iam_policy_document.rds_secret_pod_identity_trust[0].json
 }
 

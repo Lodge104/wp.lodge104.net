@@ -31,14 +31,17 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-  bucket_name         = "${local.project}-${local.env}-cdn"
-  comment             = "${local.project} ${local.env} uploads CDN"
-  aliases             = [
-    "cdn.${local.env}.wp.${local.domain}",
-    "cdn.${local.domain}",
-  ]
-  acm_certificate_arn = dependency.acm.outputs.acm_certificate_arn
-  price_class         = "PriceClass_All"
-  origin_access_control_name = "cdn-${local.env}"
+    bucket_name = "${local.project}-${local.env}-cdn"
+    comment     = "${local.project} ${local.env} uploads CDN"
+    aliases = [
+      "cdn.${local.env}.wp.${local.domain}",
+      "cdn.${local.domain}",
+    ]
+    acm_certificate_arn = dependency.acm.outputs.acm_certificate_arn
+    # PriceClass_100 (US/Canada/Europe) instead of All-edge-locations --
+    # cost optimization, see issue #32. Revisit if global latency becomes
+    # a real issue.
+    price_class                = "PriceClass_100"
+    origin_access_control_name = "cdn-${local.env}"
   }
 )

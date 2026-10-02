@@ -17,7 +17,11 @@
       "extensions": [
         "christian-kohler.path-intellisense",
         "Gruntwork.terragrunt-ls",
-        "esbenp.prettier-vscode"
+        "esbenp.prettier-vscode",
+        "arifum.bedrock-vscode-chat",
+        "amazonwebservices.aws-toolkit-vscode",
+        "4ops.terraform",
+        "hashicorp.terraform"
       ]
     }
   }

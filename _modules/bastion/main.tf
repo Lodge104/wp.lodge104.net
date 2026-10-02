@@ -232,6 +232,81 @@ data "aws_iam_policy_document" "bastion_access" {
     resources = ["*"]
   }
 
+  # Cross-environment promotion (see _modules/env-promotion) runs mysqldump
+  # against one environment's Aurora cluster and restores into another's,
+  # so the bastion needs to resolve each cluster's endpoint and read its
+  # RDS-managed master user password.
+  statement {
+    sid    = "AllowDescribeRdsClusters"
+    effect = "Allow"
+    actions = [
+      "rds:DescribeDBClusters",
+    ]
+    resources = ["*"]
+  }
+
+  # Cross-environment promotion also runs "aws eks update-kubeconfig" +
+  # kubectl exec against the target environment's cluster (to run
+  # wp search-replace inside a WordPress pod after the database restore).
+  # The Kubernetes-side authorization is granted per-target-cluster via
+  # aws_eks_access_entry/aws_eks_access_policy_association in
+  # _modules/env-promotion -- this statement only covers the IAM-side call
+  # needed to resolve the cluster endpoint/CA.
+  statement {
+    sid    = "AllowDescribeEksClusters"
+    effect = "Allow"
+    actions = [
+      "eks:DescribeCluster",
+    ]
+    resources = [
+      "arn:aws:eks:${var.region}:*:cluster/${var.project_name}-*",
+    ]
+  }
+
+  # RDS-managed master user secrets (manage_master_user_password = true) are
+  # created with an AWS-controlled name of the form "rds!cluster-<id>" --
+  # not prefixed by project_name -- so they need their own statement
+  # separate from AllowReadProjectSecrets below.
+  statement {
+    sid    = "AllowReadRdsManagedSecrets"
+    effect = "Allow"
+    actions = [
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [
+      "arn:aws:secretsmanager:${var.region}:*:secret:rds!cluster-*",
+    ]
+  }
+
+  # Cross-environment promotion syncs each environment's WP Offload Media
+  # CDN bucket ("<project>-<env>-cdn") into another environment's bucket.
+  statement {
+    sid    = "AllowCdnBucketAccess"
+    effect = "Allow"
+    actions = [
+      "s3:ListBucket",
+    ]
+    resources = [
+      "arn:aws:s3:::${var.project_name}-*-cdn",
+    ]
+  }
+
+  statement {
+    sid    = "AllowCdnBucketObjects"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:AbortMultipartUpload",
+      "s3:ListMultipartUploadParts",
+    ]
+    resources = [
+      "arn:aws:s3:::${var.project_name}-*-cdn/*",
+    ]
+  }
+
   statement {
     sid    = "AllowTransferBucketAccess"
     effect = "Allow"
@@ -347,7 +422,7 @@ resource "aws_instance" "bastion" {
     # which races with this script's dnf transaction and can corrupt the cache.
     for i in $(seq 1 10); do
       dnf clean packages
-      if dnf install -y amazon-efs-utils nfs-utils mariadb1011 jq unzip python3-botocore; then
+      if dnf install -y amazon-efs-utils nfs-utils mariadb1011 rsync jq unzip python3-botocore; then
         break
       fi
       if [ "$i" -eq 10 ]; then
@@ -357,6 +432,17 @@ resource "aws_instance" "bastion" {
       echo "dnf install attempt $i failed, retrying in 10s..."
       sleep 10
     done
+
+    # kubectl isn't packaged in the AL2023 dnf repos -- install the latest
+    # stable arm64 build directly from the upstream Kubernetes release
+    # bucket. Used by cross-environment promotion (_modules/env-promotion)
+    # to exec into a WordPress pod and run wp search-replace after a
+    # database restore.
+    if [ ! -x /usr/local/bin/kubectl ]; then
+      KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+      curl -L -o /usr/local/bin/kubectl "https://dl.k8s.io/release/$${KUBECTL_VERSION}/bin/linux/arm64/kubectl"
+      chmod +x /usr/local/bin/kubectl
+    fi
 
     mkdir -p /mnt/efs
 
@@ -433,10 +519,10 @@ resource "aws_security_group_rule" "rds_from_bastion_vpc" {
     for sg_id in local.rds_security_group_ids : sg_id => sg_id
   } : {}
 
-  type              = "ingress"
-  from_port         = 3306
-  to_port           = 3306
-  protocol          = "tcp"
+  type                     = "ingress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
   security_group_id        = each.value
   source_security_group_id = aws_security_group.bastion[0].id
   description              = "MySQL from bastion"
@@ -449,11 +535,11 @@ resource "aws_security_group_rule" "efs_from_bastion_vpc" {
     for sg_id in local.efs_security_group_ids : sg_id => sg_id
   } : {}
 
-  type              = "ingress"
-  from_port         = 2049
-  to_port           = 2049
-  protocol          = "tcp"
-  security_group_id = each.value
+  type                     = "ingress"
+  from_port                = 2049
+  to_port                  = 2049
+  protocol                 = "tcp"
+  security_group_id        = each.value
   source_security_group_id = aws_security_group.bastion[0].id
   description              = "NFS from bastion"
 

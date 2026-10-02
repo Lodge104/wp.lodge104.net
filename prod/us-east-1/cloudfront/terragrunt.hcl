@@ -116,8 +116,8 @@ inputs = merge(
     create_origin_access_control = true
     origin_access_control = {
       # Name is env-scoped: CloudFront Origin Access Control names are
-      # unique per account/region (not per distribution), so a bare
-      # "apple" collides across dev/test/prod (409
+      # unique per AWS account globally (not per distribution or Region), so
+      # a bare "apple" collides across dev/test/prod (409
       # OriginAccessControlAlreadyExists).
       "apple-${local.env}" = {
         description      = "CloudFront access to lodge104-apple"

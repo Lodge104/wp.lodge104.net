@@ -37,9 +37,14 @@ locals {
     max_capacity = 32
   }
 
-  # ElastiCache block removed -- WordPress now uses the in-cluster
-  # Memcached sub-chart instead of the managed ElastiCache service. See
-  # issue #32.
+  # Retained temporarily so the existing managed cache can be destroyed using
+  # its original Terragrunt state key. Remove after the targeted destroy and
+  # state/resource verification are complete.
+  elasticache = {
+    num_cache_nodes       = 1
+    node_type             = "cache.r6g.large"
+    autoscaling_max_nodes = 6
+  }
 
   wordpress = {
     blog_name                = "Lodge104"

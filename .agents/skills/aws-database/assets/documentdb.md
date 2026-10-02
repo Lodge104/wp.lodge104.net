@@ -10,7 +10,7 @@
 - **Scale to zero**: No
 - **VPC required**: Yes
 - **Multi-region**: Global clusters
-- **Free Tier**: 12 months (750 hrs db.t3.medium + 30 GB storage)
+- **Free Tier**: Accounts opened after July 15, 2025 use the six-month, $200 credit-based Free Plan; eligible legacy accounts may have service-specific 12-month offers. Verify current DocumentDB eligibility and pricing in the account's Free Tier plan
 - **Min cost**: ~$0 (free tier) → ~$55/month after
 - **Time to first query**: 10-15 min (VPC + cluster)
 - **Key features**: MongoDB compatibility, elastic clusters (sharding up to 32 shards), change streams, ACID transactions, flexible schema, vector search (30x faster index builds on 8.0), Serverless auto-scaling (up to 90% savings vs provisioned peak)

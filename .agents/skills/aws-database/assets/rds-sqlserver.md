@@ -9,7 +9,7 @@
 - **Scale to zero**: No
 - **VPC required**: Yes
 - **Multi-region**: Cross-region read replicas (Enterprise Edition)
-- **Free Tier**: 12 months (750 hrs/month db.t3.micro, Express Edition + 20 GB)
+- **Free Tier**: Accounts opened after July 15, 2025 use the six-month, $200 credit-based Free Plan; eligible legacy accounts may have service-specific 12-month offers. Verify current RDS SQL Server eligibility in the account's Free Tier plan
 - **Min cost**: $0 (free tier, Express) → ~$50/month (Web) → ~$500/month (Standard)
 - **Time to first query**: 15-20 min (VPC + instance + SQL Server configuration)
 - **Key features**: SQL Server features (SSRS, SSIS, SQL Agent jobs), Windows Authentication, automated backups, Multi-AZ with Always On

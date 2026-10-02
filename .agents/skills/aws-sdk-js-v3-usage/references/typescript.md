@@ -12,7 +12,7 @@ const client = new S3Client({}) as AssertiveClient<S3Client>;
 // Response fields are no longer unioned with undefined
 ```
 
-See `@smithy/types` docs for `AssertiveClient` and `UncheckedClient` (skips all runtime checks).
+See `@smithy/types` docs for `AssertiveClient` and `UncheckedClient`. `UncheckedClient` removes optionality more aggressively at the type level; runtime behavior and checks are unchanged.
 
 ## Narrow Streaming Blob Types
 
@@ -22,7 +22,7 @@ See `@smithy/types` docs for `AssertiveClient` and `UncheckedClient` (skips all 
 import { S3Client } from "@aws-sdk/client-s3";
 import type { NodeJsClient } from "@smithy/types";
 
-const client = new NodeJsClient<S3Client>(new S3Client({}));
+const client = new S3Client({}) as NodeJsClient<S3Client>;
 // Body is now typed as NodeJsRuntimeStreamingBlob (Readable) instead of a union
 ```
 

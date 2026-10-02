@@ -9,7 +9,7 @@
 - **Scale to zero**: No
 - **VPC required**: Yes
 - **Multi-region**: Cross-region read replicas (async)
-- **Free Tier**: new-account AWS Free Tier — $100 in credits at sign-up plus up to $100 more ($200 total), usable across eligible services including RDS/Aurora for up to 12 months.
+- **Free Tier**: Accounts opened after July 15, 2025 use the six-month, $200 credit-based Free Plan; eligible legacy accounts may have service-specific 12-month offers. Verify current RDS PostgreSQL eligibility in the account's Free Tier plan
 - **Min cost**: $0 (free tier) → ~$15/month after
 - **Time to first query**: 10-15 min (VPC + instance + configuration)
 - **Key features**: PostgreSQL extensions including pgvector and PostGIS, Managed Upgrades with Blue/Green Deployments, AWS Organizations for upgrade rollout policy, High availability and disaster recovery options such as Multi-AZ instances, delayed read replicas, Zero ETL integrations to Redshift

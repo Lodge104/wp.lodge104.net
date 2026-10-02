@@ -6,7 +6,7 @@
 - **Query language**: PostgreSQL SQL (standard SQL)
 - **Compatibility**: PostgreSQL wire-compatible (works with PG drivers and ORMs)
 - **Serverless**: Yes (only mode)
-- **Serverless type**: Operations — no cluster, no instances, no maintenance windows; you interact with a database endpoint only
+- **Serverless type**: Operations — AWS manages the cluster and capacity; you do not provision instances or capacity, and connect through a managed database endpoint
 - **Scale to zero**: Yes, instant (no resume latency)
 - **VPC required**: No
 - **Multi-region**: Active-active, strongly consistent

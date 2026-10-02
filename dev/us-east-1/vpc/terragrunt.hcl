@@ -30,8 +30,16 @@ inputs = merge(
     public_subnets  = [cidrsubnet(local.cidr_prefix, 8, 101), cidrsubnet(local.cidr_prefix, 8, 102), cidrsubnet(local.cidr_prefix, 8, 103)]
     intra_subnets   = [cidrsubnet(local.cidr_prefix, 8, 201), cidrsubnet(local.cidr_prefix, 8, 202), cidrsubnet(local.cidr_prefix, 8, 203)]
 
-    # Cost optimisation: single NAT in dev
-    single_nat_gateway = true
+    # NAT Gateway removed entirely -- cost optimization decision, see issue
+    # #32. EKS worker nodes now run in the public subnets with SG-scoped
+    # inbound access instead of routing outbound traffic through a NAT
+    # Gateway/instance. RDS/EFS remain on private subnets, which have no
+    # default route to the internet.
+    enable_nat_gateway = false
+
+    # Required so instances placed in the public subnets (EKS nodes) get a
+    # public IP at launch without a NAT Gateway providing egress.
+    map_public_ip_on_launch = true
 
     # Additional tag (on top of the common role tags) required by the AWS
     # Load Balancer Controller to auto-discover subnets for this cluster.

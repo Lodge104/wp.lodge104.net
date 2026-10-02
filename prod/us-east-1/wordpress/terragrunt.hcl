@@ -56,14 +56,9 @@ dependency "efs" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
-dependency "elasticache" {
-  config_path = "../elasticache"
-
-  mock_outputs = {
-    cluster_address = "${local.project}-${local.env}.xxxxxx.cfg.use1.cache.amazonaws.com"
-  }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
-}
+# ElastiCache dependency removed -- WordPress now uses the in-cluster
+# Memcached sub-chart instead of the managed ElastiCache service. See
+# issue #32.
 
 dependency "acm" {
   config_path = "../acm"
@@ -160,9 +155,9 @@ inputs = {
   # The RDS secret is mounted via the AWS Secrets Store CSI Driver (Pod
   # Identity) instead of a static Terraform-managed snapshot, so it stays in
   # sync across password rotations without any custom reconciliation logic.
-  use_secrets_store_csi_driver = true
-  eks_cluster_name             = dependency.eks.outputs.cluster_name
-  pod_identity_service_account = local.common.locals.release_name
+  use_secrets_store_csi_driver   = true
+  eks_cluster_name               = dependency.eks.outputs.cluster_name
+  pod_identity_service_account   = local.common.locals.release_name
   wordpress_s3_access_policy_arn = dependency.wordpress_s3_access.outputs.policy_arn
 
   create_wordpress_admin_credentials             = true
@@ -197,11 +192,9 @@ inputs = {
         database: ${local.rds_common.locals.database_name}
         existingSecret: ${local.project}-${local.env}-rds-credentials
 
-      externalCache:
-        host: "${dependency.elasticache.outputs.cluster_address}"
-        port: 11211
-
-      wordpressConfigureCache: true
+      # Cache is provided by the in-cluster Memcached sub-chart enabled in
+      # _common/wordpress.hcl (memcached.enabled: true) -- no external
+      # ElastiCache endpoint needed. See issue #32.
 
       wordpressExtraConfigContent: |
         define( 'WP_CACHE', true );

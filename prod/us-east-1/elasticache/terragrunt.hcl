@@ -14,9 +14,8 @@ include "root" {
   expose = true
 }
 
-# ElastiCache does not manage Application Auto Scaling for Memcached itself
-# (unlike Redis/Valkey replication groups), so the scalable target and its
-# target-tracking policy are registered directly against the cache cluster.
+# Keep this temporary stack until its targeted destroy and state/resource
+# verification are complete.
 generate "elasticache_autoscaling" {
   path      = "elasticache_autoscaling.tf"
   if_exists = "overwrite_terragrunt"

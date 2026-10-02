@@ -96,5 +96,16 @@ locals {
 
     autoscaling:
       enabled: true
+
+    # In-cluster Memcached (Bitnami sub-chart) replaces the managed
+    # ElastiCache service -- cost optimization, see issue #32. When
+    # enabled, the chart auto-wires WORDPRESS's cache host/port to this
+    # service and externalCache.* is ignored.
+    memcached:
+      enabled: true
+      architecture: standalone
+      resourcesPreset: nano
+
+    wordpressConfigureCache: true
   YAML
 }

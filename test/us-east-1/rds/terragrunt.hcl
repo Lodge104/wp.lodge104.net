@@ -39,7 +39,9 @@ terraform {
   extra_arguments "final_snapshot" {
     commands = ["destroy"]
     arguments = [
-      "-var=final_snapshot_identifier=${local.project}-${local.env}-final",
+      # Timestamped so repeat teardowns don't collide with an earlier final
+      # snapshot (DBClusterSnapshotAlreadyExistsFault).
+      "-var=final_snapshot_identifier=${local.project}-${local.env}-final-${formatdate("YYYYMMDDhhmmss", timestamp())}",
       "-var=skip_final_snapshot=false",
     ]
   }

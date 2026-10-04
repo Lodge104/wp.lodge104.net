@@ -120,6 +120,9 @@ locals {
     error_503 = {
       domain_name = "elegant-squirrel-53e205.netlify.app"
     }
+    error_403 = {
+      domain_name = "tubular-hummingbird-cbcd8e.netlify.app"
+    }
   }
 
   custom_error_response = [
@@ -133,6 +136,12 @@ locals {
       error_code            = 503
       response_code         = 503
       response_page_path    = "/503"
+      error_caching_min_ttl = 0
+    },
+    {
+      error_code            = 403
+      response_code         = 403
+      response_page_path    = "/403"
       error_caching_min_ttl = 0
     }
   ]
@@ -149,6 +158,10 @@ locals {
       merge(local.error_page_behavior, {
         path_pattern     = "/503"
         target_origin_id = "error-503"
+      }),
+      merge(local.error_page_behavior, {
+        path_pattern     = "/403"
+        target_origin_id = "error-403"
       })
     ],
     [

@@ -14,6 +14,9 @@ terraform {
 locals {
   # Clusters that could ever be a promotion *target* -- the ones the bastion
   # needs post-copy kubectl access to in order to run wp search-replace.
+  # (Resolving each environment's EFS access-point directory, see
+  # files/ssm-promote.sh, goes through the EFS API directly and needs no
+  # kubectl/EKS access, so source-only clusters don't need an access entry.)
   target_envs = distinct([for p in var.allowed_promotions : p.target])
 
   # Only grant access entries for clusters that actually exist yet, so this

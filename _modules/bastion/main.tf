@@ -232,6 +232,21 @@ data "aws_iam_policy_document" "bastion_access" {
     resources = ["*"]
   }
 
+  # Cross-environment promotion (see _modules/env-promotion) resolves each
+  # environment's actual EFS access-point root directory before syncing,
+  # instead of assuming the filesystem root -- the per-install access point
+  # (created by the efs-ap StorageClass provisioning mode, see
+  # _modules/efs) is what the WordPress pod's PVC actually mounts.
+  statement {
+    sid    = "AllowDescribeEfsAccessPoints"
+    effect = "Allow"
+    actions = [
+      "elasticfilesystem:DescribeFileSystems",
+      "elasticfilesystem:DescribeAccessPoints",
+    ]
+    resources = ["*"]
+  }
+
   # Cross-environment promotion (see _modules/env-promotion) runs mysqldump
   # against one environment's Aurora cluster and restores into another's,
   # so the bastion needs to resolve each cluster's endpoint and read its
@@ -301,6 +316,12 @@ data "aws_iam_policy_document" "bastion_access" {
       "s3:DeleteObject",
       "s3:AbortMultipartUpload",
       "s3:ListMultipartUploadParts",
+      # aws s3 sync reads+writes object tags by default (WP Offload Media
+      # tags uploads); without these the sync aborts partway through with
+      # AccessDenied on GetObjectTagging the first time it hits a tagged
+      # object.
+      "s3:GetObjectTagging",
+      "s3:PutObjectTagging",
     ]
     resources = [
       "arn:aws:s3:::${var.project_name}-*-cdn/*",

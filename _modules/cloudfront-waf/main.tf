@@ -60,7 +60,12 @@ resource "aws_wafv2_web_acl" "this" {
 
   # The managed body rules count globally so that body matches can be
   # blocked on public paths while remaining non-blocking for page-builder
-  # requests under /wp-admin.
+  # requests under /wp-admin. xmlrpc.php is also excluded: its XML-RPC
+  # request body is a well-formed XML document (e.g.
+  # "<?xml version=\"1.0\"?><methodCall>..."), and the leading "<?xml"
+  # reliably false-positives against CrossSiteScripting_BODY, blocking
+  # every legitimate XML-RPC call (Jetpack, pingbacks, remote publishing)
+  # before it reaches WordPress.
   rule {
     name     = "CommonRuleSet-body-block-public"
     priority = 11
@@ -74,17 +79,37 @@ resource "aws_wafv2_web_acl" "this" {
         statement {
           not_statement {
             statement {
-              byte_match_statement {
-                search_string         = "/wp-admin"
-                positional_constraint = "STARTS_WITH"
+              or_statement {
+                statement {
+                  byte_match_statement {
+                    search_string         = "/wp-admin"
+                    positional_constraint = "STARTS_WITH"
 
-                field_to_match {
-                  uri_path {}
+                    field_to_match {
+                      uri_path {}
+                    }
+
+                    text_transformation {
+                      priority = 0
+                      type     = "NONE"
+                    }
+                  }
                 }
 
-                text_transformation {
-                  priority = 0
-                  type     = "NONE"
+                statement {
+                  byte_match_statement {
+                    search_string         = "/xmlrpc.php"
+                    positional_constraint = "EXACTLY"
+
+                    field_to_match {
+                      uri_path {}
+                    }
+
+                    text_transformation {
+                      priority = 0
+                      type     = "NONE"
+                    }
+                  }
                 }
               }
             }

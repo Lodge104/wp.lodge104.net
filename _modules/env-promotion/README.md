@@ -16,6 +16,9 @@ time.
    wait for the copy to finish -- dumps/restores and large EFS/S3 syncs can
    run well past Lambda's 15-minute limit).
 2. The SSM command runs `files/ssm-promote.sh` on the bastion, which:
+   - Takes a host-wide lock so only one promotion can modify environments at
+     a time, enables WordPress maintenance mode, and drains the target
+     deployment before changing its database or files.
    - `mysqldump`s the source Aurora cluster and restores it into the target
      cluster (endpoints and master-user credentials are resolved at runtime
      via `rds:DescribeDBClusters` and Secrets Manager -- no static
@@ -29,7 +32,9 @@ time.
      `wp search-replace` to rewrite the source environment's hostname
      (`<source-env>.wp.<domain>`, or the bare `<domain>` for prod) to the
      target environment's hostname, serialization-safe, across every table
-     and every multisite blog (see "Domain rewriting" below).
+     and every multisite blog (see "Domain rewriting" below), then restores
+     the target deployment and removes maintenance mode even if the
+     promotion fails.
 3. Command output streams to the CloudWatch Logs group named in the
    `ssm_command_log_group` output. Poll completion with:
 

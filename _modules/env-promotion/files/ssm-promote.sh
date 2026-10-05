@@ -34,6 +34,14 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+# Serialize promotions on the shared bastion for the lifetime of the SSM
+# command, including promotions with different source/target environments.
+exec 9>/var/lock/env-promotion.lock
+if ! flock -n 9; then
+  echo "Another environment promotion is already running; refusing to overlap." >&2
+  exit 1
+fi
+
 PROJECT="{{ ProjectName }}"
 SRC_ENV="{{ SourceEnv }}"
 DST_ENV="{{ TargetEnv }}"
@@ -65,6 +73,47 @@ DST_HOST=$(env_hostname "$DST_ENV")
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
 
+TARGET_DEPLOYMENT=""
+ORIGINAL_REPLICAS=""
+TARGET_QUIESCED=0
+MAINTENANCE_ACTIVE=0
+
+restore_target() {
+  local status=$?
+  local pod_name
+  trap - EXIT
+  set +e
+
+  if [ "$TARGET_QUIESCED" -eq 1 ]; then
+    log "Restoring ${TARGET_DEPLOYMENT} to ${ORIGINAL_REPLICAS} replicas..."
+    if ! kubectl scale deployment "$TARGET_DEPLOYMENT" -n "$NAMESPACE" \
+      --replicas="$ORIGINAL_REPLICAS"; then
+      status=1
+    fi
+    if ! kubectl rollout status "deployment/${TARGET_DEPLOYMENT}" -n "$NAMESPACE" --timeout=10m; then
+      status=1
+    fi
+  fi
+
+  if [ "$MAINTENANCE_ACTIVE" -eq 1 ]; then
+    pod_name=$(kubectl get pods -n "$NAMESPACE" \
+      -l "app.kubernetes.io/instance=${RELEASE_NAME}" \
+      -o jsonpath='{.items[0].metadata.name}')
+    if [ -n "$pod_name" ]; then
+      if ! kubectl exec -n "$NAMESPACE" "$pod_name" -c wordpress -- wp maintenance-mode deactivate; then
+        status=1
+      fi
+    else
+      echo "Could not find a WordPress pod to deactivate maintenance mode." >&2
+      status=1
+    fi
+  fi
+
+  rm -f "${DUMP_FILE:-}" "${DST_KUBECONFIG:-}"
+  exit "$status"
+}
+trap restore_target EXIT
+
 log "=== Starting promotion: ${PROJECT} ${SRC_ENV} -> ${DST_ENV} ==="
 
 # ---------------------------------------------------------------------------
@@ -72,10 +121,10 @@ log "=== Starting promotion: ${PROJECT} ${SRC_ENV} -> ${DST_ENV} ==="
 #    wp search-replace exec in step 4).
 # ---------------------------------------------------------------------------
 DST_KUBECONFIG=$(mktemp)
-trap 'rm -f "$DUMP_FILE" "$DST_KUBECONFIG"' EXIT
 
 log "Resolving kubeconfig for ${DST_CLUSTER}..."
 KUBECONFIG="$DST_KUBECONFIG" aws eks update-kubeconfig --name "$DST_CLUSTER" --region "$REGION" >/dev/null
+export KUBECONFIG="$DST_KUBECONFIG"
 
 # Resolves the absolute path (relative to the EFS filesystem root) that the
 # given environment's WordPress data actually lives under. The EFS CSI
@@ -143,14 +192,45 @@ DST_PASSWORD=$(aws secretsmanager get-secret-value --region "$REGION" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["password"])')
 
 DUMP_FILE="/tmp/${PROJECT}-${SRC_ENV}-to-${DST_ENV}.sql"
-# NOTE: the EXIT trap covering $DUMP_FILE and $DST_KUBECONFIG together was
-# already registered in step 0 above -- do not re-register it here, a
-# second `trap ... EXIT` would replace (not add to) the first and silently
-# drop the kubeconfig cleanup.
 
 log "Dumping ${SRC_CLUSTER} (${SRC_ENDPOINT})..."
 MYSQL_PWD="$SRC_PASSWORD" mysqldump -h "$SRC_ENDPOINT" -u "$DB_USER" \
   --single-transaction --quick --routines --triggers "$DB_NAME" > "$DUMP_FILE"
+
+TARGET_DEPLOYMENT=$(kubectl get deployments -n "$NAMESPACE" \
+  -l "app.kubernetes.io/instance=${RELEASE_NAME}" \
+  -o jsonpath='{.items[0].metadata.name}')
+if [ -z "$TARGET_DEPLOYMENT" ]; then
+  echo "No WordPress deployment found in namespace ${NAMESPACE} (release ${RELEASE_NAME})." >&2
+  exit 1
+fi
+
+ORIGINAL_REPLICAS=$(kubectl get deployment "$TARGET_DEPLOYMENT" -n "$NAMESPACE" \
+  -o jsonpath='{.spec.replicas}')
+if [ -z "$ORIGINAL_REPLICAS" ] || [ "$ORIGINAL_REPLICAS" -lt 1 ]; then
+  echo "WordPress deployment ${TARGET_DEPLOYMENT} has no replicas to quiesce." >&2
+  exit 1
+fi
+
+POD_NAME=$(kubectl get pods -n "$NAMESPACE" \
+  -l "app.kubernetes.io/instance=${RELEASE_NAME}" \
+  -o jsonpath='{.items[0].metadata.name}')
+if [ -z "$POD_NAME" ]; then
+  echo "No WordPress pod found to quiesce in namespace ${NAMESPACE}." >&2
+  exit 1
+fi
+
+log "Enabling WordPress maintenance mode and draining ${TARGET_DEPLOYMENT}..."
+MAINTENANCE_ACTIVE=1
+kubectl exec -n "$NAMESPACE" "$POD_NAME" -c wordpress -- wp maintenance-mode activate
+# Keep WordPress from expiring the maintenance file during a long promotion.
+# shellcheck disable=SC2016
+kubectl exec -n "$NAMESPACE" "$POD_NAME" -c wordpress -- wp eval \
+  'file_put_contents(ABSPATH . ".maintenance", "<?php \$upgrading = " . (time() + 604800) . ";");'
+
+TARGET_QUIESCED=1
+kubectl scale deployment "$TARGET_DEPLOYMENT" -n "$NAMESPACE" --replicas=0
+kubectl rollout status "deployment/${TARGET_DEPLOYMENT}" -n "$NAMESPACE" --timeout=10m
 
 log "Restoring into ${DST_CLUSTER} (${DST_ENDPOINT})..."
 MYSQL_PWD="$DST_PASSWORD" mysql -h "$DST_ENDPOINT" -u "$DB_USER" "$DB_NAME" < "$DUMP_FILE"
@@ -188,7 +268,7 @@ if [ ! -d "$SRC_EFS" ] || [ ! -d "$DST_EFS" ]; then
 fi
 
 log "Syncing EFS ${SRC_EFS} -> ${DST_EFS}..."
-rsync -a --delete "${SRC_EFS}/" "${DST_EFS}/"
+rsync -a --delete --exclude=.maintenance "${SRC_EFS}/" "${DST_EFS}/"
 log "EFS copy complete."
 
 # ---------------------------------------------------------------------------
@@ -200,6 +280,14 @@ DST_BUCKET="${DST_CLUSTER}-cdn"
 log "Syncing s3://${SRC_BUCKET} -> s3://${DST_BUCKET}..."
 aws s3 sync "s3://${SRC_BUCKET}" "s3://${DST_BUCKET}" --delete --region "$REGION"
 log "S3 copy complete."
+
+# Bring the deployment back with maintenance mode still active so WP-CLI can
+# rewrite domains without allowing application requests or cron writes.
+log "Starting ${TARGET_DEPLOYMENT} for the domain rewrite..."
+kubectl scale deployment "$TARGET_DEPLOYMENT" -n "$NAMESPACE" \
+  --replicas="$ORIGINAL_REPLICAS"
+kubectl rollout status "deployment/${TARGET_DEPLOYMENT}" -n "$NAMESPACE" --timeout=10m
+TARGET_QUIESCED=0
 
 # ---------------------------------------------------------------------------
 # 4. Domain rewrite: the copied database still has the source environment's

@@ -15,59 +15,9 @@ resource "aws_wafv2_web_acl" "this" {
     allow {}
   }
 
-  # Full CommonRuleSet enforcement for everything except /wp-admin. Keeps
-  # body-inspection rules (size/XSS/LFI) blocking on the public site.
   rule {
     name     = "AWSManagedRulesCommonRuleSet"
     priority = 10
-
-    override_action {
-      none {}
-    }
-
-    statement {
-      managed_rule_group_statement {
-        name        = "AWSManagedRulesCommonRuleSet"
-        vendor_name = "AWS"
-
-        scope_down_statement {
-          not_statement {
-            statement {
-              byte_match_statement {
-                search_string         = "/wp-admin"
-                positional_constraint = "STARTS_WITH"
-
-                field_to_match {
-                  uri_path {}
-                }
-
-                text_transformation {
-                  priority = 0
-                  type     = "NONE"
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      metric_name                = "${var.name}-common"
-      sampled_requests_enabled   = true
-    }
-  }
-
-  # Same CommonRuleSet for /wp-admin, but with the body-inspection rules
-  # that false-positive on page-builder save payloads (large HTML/CSS/JS
-  # POSTs to admin-ajax.php, e.g. Divi's Visual Builder) downgraded to
-  # Count instead of Block. All other CommonRuleSet protections (SQLi,
-  # LFI in URI/query args, restricted extensions, bad user agents, etc.)
-  # still block on /wp-admin.
-  rule {
-    name     = "AWSManagedRulesCommonRuleSet-wp-admin"
-    priority = 11
 
     override_action {
       none {}
@@ -98,19 +48,70 @@ resource "aws_wafv2_web_acl" "this" {
             count {}
           }
         }
+      }
+    }
 
-        scope_down_statement {
-          byte_match_statement {
-            search_string         = "/wp-admin"
-            positional_constraint = "STARTS_WITH"
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${var.name}-common"
+      sampled_requests_enabled   = true
+    }
+  }
 
-            field_to_match {
-              uri_path {}
+  # The managed body rules count globally so that body matches can be
+  # blocked on public paths while remaining non-blocking for page-builder
+  # requests under /wp-admin.
+  rule {
+    name     = "CommonRuleSet-body-block-public"
+    priority = 11
+
+    action {
+      block {}
+    }
+
+    statement {
+      and_statement {
+        statement {
+          not_statement {
+            statement {
+              byte_match_statement {
+                search_string         = "/wp-admin"
+                positional_constraint = "STARTS_WITH"
+
+                field_to_match {
+                  uri_path {}
+                }
+
+                text_transformation {
+                  priority = 0
+                  type     = "NONE"
+                }
+              }
+            }
+          }
+        }
+
+        statement {
+          or_statement {
+            statement {
+              label_match_statement {
+                scope = "LABEL"
+                key   = "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body"
+              }
             }
 
-            text_transformation {
-              priority = 0
-              type     = "NONE"
+            statement {
+              label_match_statement {
+                scope = "LABEL"
+                key   = "awswaf:managed:aws:core-rule-set:CrossSiteScripting_Body"
+              }
+            }
+
+            statement {
+              label_match_statement {
+                scope = "LABEL"
+                key   = "awswaf:managed:aws:core-rule-set:GenericLFI_Body"
+              }
             }
           }
         }
@@ -119,7 +120,7 @@ resource "aws_wafv2_web_acl" "this" {
 
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "${var.name}-common-wp-admin"
+      metric_name                = "${var.name}-common-body-public"
       sampled_requests_enabled   = true
     }
   }
@@ -162,6 +163,18 @@ resource "aws_cloudwatch_log_resource_policy" "waf" {
 resource "aws_wafv2_web_acl_logging_configuration" "this" {
   resource_arn            = aws_wafv2_web_acl.this.arn
   log_destination_configs = [aws_cloudwatch_log_group.waf.arn]
+
+  redacted_fields {
+    single_header {
+      name = "cookie"
+    }
+  }
+
+  redacted_fields {
+    single_header {
+      name = "authorization"
+    }
+  }
 
   depends_on = [aws_cloudwatch_log_resource_policy.waf]
 }

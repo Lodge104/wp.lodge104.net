@@ -204,6 +204,20 @@ data "aws_iam_policy_document" "bastion_access" {
   }
 
   statement {
+    sid    = "AllowSsmCommandCloudWatchLogs"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogStream",
+      "logs:DescribeLogStreams",
+      "logs:PutLogEvents",
+    ]
+    resources = [
+      "arn:aws:logs:${var.region}:*:log-group:/${var.project_name}/env-promotion/ssm-command",
+      "arn:aws:logs:${var.region}:*:log-group:/${var.project_name}/env-promotion/ssm-command:*",
+    ]
+  }
+
+  statement {
     sid    = "AllowReadProjectSecrets"
     effect = "Allow"
     actions = [
@@ -443,7 +457,7 @@ resource "aws_instance" "bastion" {
     # which races with this script's dnf transaction and can corrupt the cache.
     for i in $(seq 1 10); do
       dnf clean packages
-      if dnf install -y amazon-efs-utils nfs-utils mariadb1011 rsync jq unzip python3-botocore; then
+      if dnf install -y amazon-efs-utils nfs-utils mariadb1011 rsync jq unzip python3-botocore util-linux; then
         break
       fi
       if [ "$i" -eq 10 ]; then
@@ -454,15 +468,22 @@ resource "aws_instance" "bastion" {
       sleep 10
     done
 
-    # kubectl isn't packaged in the AL2023 dnf repos -- install the latest
-    # stable arm64 build directly from the upstream Kubernetes release
-    # bucket. Used by cross-environment promotion (_modules/env-promotion)
-    # to exec into a WordPress pod and run wp search-replace after a
-    # database restore.
+    # kubectl isn't packaged in the AL2023 dnf repos -- install the arm64
+    # build matching the configured EKS version and verify its published
+    # checksum before use by cross-environment promotion.
     if [ ! -x /usr/local/bin/kubectl ]; then
-      KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
-      curl -L -o /usr/local/bin/kubectl "https://dl.k8s.io/release/$${KUBECTL_VERSION}/bin/linux/arm64/kubectl"
-      chmod +x /usr/local/bin/kubectl
+      KUBECTL_VERSION="v${var.kubernetes_version}.0"
+      KUBECTL_TMP=$(mktemp)
+      curl --fail --silent --show-error --location -o "$${KUBECTL_TMP}" "https://dl.k8s.io/release/$${KUBECTL_VERSION}/bin/linux/arm64/kubectl"
+      curl --fail --silent --show-error --location -o "$${KUBECTL_TMP}.sha256" "https://dl.k8s.io/release/$${KUBECTL_VERSION}/bin/linux/arm64/kubectl.sha256"
+      KUBECTL_SHA256=$(cat "$${KUBECTL_TMP}.sha256")
+      if ! echo "$${KUBECTL_SHA256}  $${KUBECTL_TMP}" | sha256sum --check --status; then
+        rm -f "$${KUBECTL_TMP}" "$${KUBECTL_TMP}.sha256"
+        echo "kubectl checksum verification failed" >&2
+        exit 1
+      fi
+      install -m 0755 "$${KUBECTL_TMP}" /usr/local/bin/kubectl
+      rm -f "$${KUBECTL_TMP}" "$${KUBECTL_TMP}.sha256"
     fi
 
     mkdir -p /mnt/efs

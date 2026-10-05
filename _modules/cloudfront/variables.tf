@@ -49,3 +49,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "force_destroy" {
+  description = "Allow Terraform to delete the CDN bucket even if it still contains objects (all versions). Enable only in non-production environments."
+  type        = bool
+  default     = false
+}

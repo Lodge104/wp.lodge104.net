@@ -8,6 +8,11 @@ output "instance_id" {
   value       = local.create_bastion ? aws_instance.bastion[0].id : null
 }
 
+output "role_arn" {
+  description = "IAM role ARN assumed by the bastion instance when enabled. Used by other modules (e.g. env-promotion) that need to grant the bastion additional access, such as EKS access entries."
+  value       = local.create_bastion ? aws_iam_role.bastion[0].arn : null
+}
+
 output "instance_private_ip" {
   description = "Bastion private IP when enabled."
   value       = local.create_bastion ? aws_instance.bastion[0].private_ip : null

@@ -12,7 +12,7 @@ locals {
       # Graviton -- matches the arm64 AMI default in _common/eks.hcl. See
       # issue #32.
       instance_types = ["t4g.medium"]
-      capacity_type  = "SPOT"
+      capacity_type  = "ON_DEMAND"
     }
   }
 

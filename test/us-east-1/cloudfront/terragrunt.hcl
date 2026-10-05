@@ -95,6 +95,15 @@ inputs = merge(
           origin_ssl_protocols = ["TLSv1.2"]
         }
       }
+      error-403 = {
+        domain_name = local.common.locals.error_page_origins.error_403.domain_name
+        custom_origin_config = {
+          http_port = 80
+          https_port = 443
+          origin_protocol_policy = "https-only"
+          origin_ssl_protocols = ["TLSv1.2"]
+        }
+      }
       apple = {
         domain_name = "lodge104-apple.s3.us-east-1.amazonaws.com"
         origin_access_control = "apple-${local.env}"

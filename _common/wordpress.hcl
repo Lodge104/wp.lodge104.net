@@ -64,6 +64,29 @@ locals {
       accessModes:
         - ReadWriteMany
 
+    # /opt/bitnami/wordpress lives on the container's local (ephemeral) disk
+    # and is recreated fresh from the image on every pod start -- only
+    # wp-config.php and wp-content are symlinked back to the EFS-backed
+    # /bitnami/wordpress PVC by the Bitnami entrypoint. Anything else that
+    # needs to persist and be served from the webroot (e.g. domain
+    # verification files like Apple Pay's
+    # .well-known/apple-developer-merchantid-domain-association, added
+    # manually under /bitnami/wordpress/.well-known) must be symlinked back
+    # the same way, or it silently disappears on every pod restart/recycle.
+    lifecycleHooks:
+      postStart:
+        exec:
+          command:
+            - /bin/bash
+            - -c
+            - |
+              for i in $(seq 1 30); do
+                [ -d /bitnami/wordpress ] && break
+                sleep 1
+              done
+              mkdir -p /bitnami/wordpress/.well-known
+              ln -sfn /bitnami/wordpress/.well-known /opt/bitnami/wordpress/.well-known
+
     # The ALB terminates TLS and forwards plain HTTP to the pod; keep health
     # probes on the actual in-pod HTTP listener to avoid slow/unreliable pod
     # readiness during scale-out.
@@ -107,5 +130,16 @@ locals {
       resourcesPreset: nano
 
     wordpressConfigureCache: true
+
+    # The Bitnami image blocks /xmlrpc.php by default (Apache <Files> deny
+    # rule, re-rendered from this env var on every container start). Jetpack
+    # and some third-party integrations rely on XML-RPC and otherwise see a
+    # 403/404 from the "Jetpack Connection" health check. Pingback methods
+    # remain disabled separately regardless of this setting (see
+    # wordpress_disable_pingback in the Bitnami entrypoint), so this does not
+    # re-expose the pingback DDoS vector -- only the rest of the XML-RPC API.
+    extraEnvVars:
+      - name: WORDPRESS_ENABLE_XML_RPC
+        value: "yes"
   YAML
 }

@@ -28,6 +28,11 @@ variable "root_volume_size" {
   type        = number
 }
 
+variable "kubernetes_version" {
+  description = "Kubernetes version used by the EKS clusters and pinned for the bastion kubectl installation."
+  type        = string
+}
+
 variable "transfer_bucket_name" {
   description = "S3 bucket name for file transfers."
   type        = string

@@ -9,7 +9,7 @@ terraform {
 
 resource "aws_s3_bucket" "cdn" {
   bucket        = var.bucket_name
-  force_destroy = false
+  force_destroy = var.force_destroy
 
   tags = merge(var.tags, {
     Name = var.bucket_name

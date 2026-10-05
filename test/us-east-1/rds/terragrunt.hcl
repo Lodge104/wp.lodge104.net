@@ -71,6 +71,6 @@ inputs = merge(
 
     deletion_protection = false
     skip_final_snapshot       = false
-    final_snapshot_identifier = "${local.project}-${local.env}-final"
+    final_snapshot_identifier = "${local.project}-${local.env}-final-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   }
 )

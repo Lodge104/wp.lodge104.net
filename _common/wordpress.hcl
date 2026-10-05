@@ -107,5 +107,16 @@ locals {
       resourcesPreset: nano
 
     wordpressConfigureCache: true
+
+    # The Bitnami image blocks /xmlrpc.php by default (Apache <Files> deny
+    # rule, re-rendered from this env var on every container start). Jetpack
+    # and some third-party integrations rely on XML-RPC and otherwise see a
+    # 403/404 from the "Jetpack Connection" health check. Pingback methods
+    # remain disabled separately regardless of this setting (see
+    # wordpress_disable_pingback in the Bitnami entrypoint), so this does not
+    # re-expose the pingback DDoS vector -- only the rest of the XML-RPC API.
+    extraEnvVars:
+      - name: WORDPRESS_ENABLE_XML_RPC
+        value: "yes"
   YAML
 }

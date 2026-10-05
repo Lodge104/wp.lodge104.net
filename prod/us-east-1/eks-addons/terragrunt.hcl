@@ -75,6 +75,63 @@ generate "helm_provider" {
   EOF
 }
 
+# Amazon CloudWatch Observability isn't supported by the aws-ia/eks-blueprints-addons
+# module (it only wraps Helm-chart addons + a generic eks_addons map that doesn't thread
+# through pod_identity_association), so it's created directly here as a managed EKS addon.
+# Installed via EKS Pod Identity (the recommended method, supported since addon v3.1.0+)
+# so logs/metrics survive pod deletion -- this is what lets us read WordPress crash logs in
+# CloudWatch Logs Insights after Helm's atomic rollback deletes a failed pod.
+generate "cloudwatch_observability_addon" {
+  path      = "cloudwatch_observability_addon.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<-EOF
+    data "aws_eks_addon_version" "cloudwatch_observability" {
+      addon_name         = "amazon-cloudwatch-observability"
+      kubernetes_version = "${dependency.eks.outputs.cluster_version}"
+      most_recent        = true
+    }
+
+    resource "aws_iam_role" "cloudwatch_observability" {
+      name = "${dependency.eks.outputs.cluster_name}-cloudwatch-observability"
+
+      assume_role_policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [{
+          Effect    = "Allow"
+          Principal = { Service = "pods.eks.amazonaws.com" }
+          Action    = ["sts:AssumeRole", "sts:TagSession"]
+        }]
+      })
+    }
+
+    resource "aws_iam_role_policy_attachment" "cloudwatch_observability_agent" {
+      role       = aws_iam_role.cloudwatch_observability.name
+      policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+    }
+
+    resource "aws_iam_role_policy_attachment" "cloudwatch_observability_xray" {
+      role       = aws_iam_role.cloudwatch_observability.name
+      policy_arn = "arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess"
+    }
+
+    resource "aws_eks_addon" "cloudwatch_observability" {
+      cluster_name  = "${dependency.eks.outputs.cluster_name}"
+      addon_name    = "amazon-cloudwatch-observability"
+      addon_version = data.aws_eks_addon_version.cloudwatch_observability.version
+
+      pod_identity_association {
+        role_arn        = aws_iam_role.cloudwatch_observability.arn
+        service_account = "cloudwatch-agent"
+      }
+
+      depends_on = [
+        aws_iam_role_policy_attachment.cloudwatch_observability_agent,
+        aws_iam_role_policy_attachment.cloudwatch_observability_xray,
+      ]
+    }
+  EOF
+}
+
 inputs = merge(
   local.common.locals,
   {

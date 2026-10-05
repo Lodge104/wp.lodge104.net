@@ -248,4 +248,9 @@
     "chat.extensionUnification.enabled": false,
     "chat.tools.terminal.outputLocation": "terminal",
     "inlineChat.affordance": "editor",
+    "github.copilot.chat.agent.longToolCallCachePreservation.enabled": true,
+    "github.copilot.chat.responsesApi.promptCacheKey.enabled": true,
+    "github.copilot.chat.anthropic.promptCaching.extendedTtl": true,
+    "github.copilot.chat.anthropic.promptCaching.extendedTtlMessages": true,
+    "github.copilot.chat.anthropic.contextEditing.mode": "clear-tooluse",
 }

@@ -64,29 +64,6 @@ locals {
       accessModes:
         - ReadWriteMany
 
-    # /opt/bitnami/wordpress lives on the container's local (ephemeral) disk
-    # and is recreated fresh from the image on every pod start -- only
-    # wp-config.php and wp-content are symlinked back to the EFS-backed
-    # /bitnami/wordpress PVC by the Bitnami entrypoint. Anything else that
-    # needs to persist and be served from the webroot (e.g. domain
-    # verification files like Apple Pay's
-    # .well-known/apple-developer-merchantid-domain-association, added
-    # manually under /bitnami/wordpress/.well-known) must be symlinked back
-    # the same way, or it silently disappears on every pod restart/recycle.
-    lifecycleHooks:
-      postStart:
-        exec:
-          command:
-            - /bin/bash
-            - -c
-            - |
-              for i in $(seq 1 30); do
-                [ -d /bitnami/wordpress ] && break
-                sleep 1
-              done
-              mkdir -p /bitnami/wordpress/.well-known
-              ln -sfn /bitnami/wordpress/.well-known /opt/bitnami/wordpress/.well-known
-
     # The ALB terminates TLS and forwards plain HTTP to the pod; keep health
     # probes on the actual in-pod HTTP listener to avoid slow/unreliable pod
     # readiness during scale-out.

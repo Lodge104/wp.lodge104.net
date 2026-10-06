@@ -283,5 +283,45 @@ inputs = {
           mountPath: /mnt/secrets-store/rds
           readOnly: true
     YAML
+    ,
+    <<-YAML
+      # /opt/bitnami/wordpress lives on the container's local (ephemeral) disk
+      # and is recreated fresh from the image on every pod start -- only
+      # wp-config.php and wp-content are symlinked back to the EFS-backed
+      # /bitnami/wordpress PVC by the Bitnami entrypoint. Anything else that
+      # needs to persist and be served from the webroot (e.g. domain
+      # verification files like Apple Pay's
+      # .well-known/apple-developer-merchantid-domain-association, added
+      # manually under /bitnami/wordpress/.well-known) must be symlinked back
+      # the same way, or it silently disappears on every pod restart/recycle.
+      # Prod-only: dev/test have no equivalent domain-verification files, and
+      # this hook raced the entrypoint's first-boot install on fresh/empty
+      # PVCs there -- see IMPORTANT note below.
+      #
+      # IMPORTANT: postStart runs concurrently with the main entrypoint, not
+      # after it. On a brand-new PVC (empty EFS access point), `mkdir -p
+      # /bitnami/wordpress/.well-known` here can race ahead of the entrypoint's
+      # own first-boot install and create a non-empty /bitnami/wordpress
+      # directory before wp-config.php exists. The entrypoint's
+      # is_app_initialized() check only tests whether that directory is
+      # non-empty -- it then wrongly concludes a WordPress install is already
+      # persisted there, skips `wp core install`, and crashes with "wp-config.php
+      # not found". So this hook must wait for wp-config.php to actually exist
+      # (i.e. install has completed, whether on this boot or a previous one)
+      # before touching the directory, not just wait for the directory itself.
+      lifecycleHooks:
+        postStart:
+          exec:
+            command:
+              - /bin/bash
+              - -c
+              - |
+                for i in $(seq 1 180); do
+                  [ -f /bitnami/wordpress/wp-config.php ] && break
+                  sleep 1
+                done
+                mkdir -p /bitnami/wordpress/.well-known
+                ln -sfn /bitnami/wordpress/.well-known /opt/bitnami/wordpress/.well-known
+    YAML
   ]
 }

@@ -16,10 +16,12 @@
 #     and the per-environment *-cdn S3 buckets (granted alongside this
 #     module -- see _modules/bastion/main.tf)
 #   - a Kubernetes access entry + namespace-scoped AmazonEKSEditPolicy on
-#     every promotion *target* cluster (granted in this module's main.tf),
-#     which is what makes the kubectl exec in step 4 authorized. Source
-#     clusters need no kubectl access -- the EFS access-point lookup in
-#     step 2 goes through the EFS API directly.
+#     every promotion *target* cluster, and a namespace-scoped
+#     AmazonEKSViewPolicy on every *source-only* cluster (granted in this
+#     module's main.tf). Edit is needed on targets for the maintenance-mode
+#     exec/scale and the wp search-replace exec in step 4; read-only View
+#     access on sources is enough to resolve the WordPress PVC's bound EFS
+#     access-point path in step 2 (see efs_access_point_path below).
 #
 # Parameters (substituted by SSM before this script runs):
 #   ProjectName, SourceEnv, TargetEnv, Region, Domain, ReleaseName, Namespace
@@ -109,7 +111,7 @@ restore_target() {
     fi
   fi
 
-  rm -f "${DUMP_FILE:-}" "${DST_KUBECONFIG:-}"
+  rm -f "${DUMP_FILE:-}" "${DST_KUBECONFIG:-}" "${SRC_KUBECONFIG:-}"
   exit "$status"
 }
 trap restore_target EXIT
@@ -117,10 +119,16 @@ trap restore_target EXIT
 log "=== Starting promotion: ${PROJECT} ${SRC_ENV} -> ${DST_ENV} ==="
 
 # ---------------------------------------------------------------------------
-# 0. Resolve the target cluster's kubeconfig up front (needed later for the
-#    wp search-replace exec in step 4).
+# 0. Resolve both clusters' kubeconfigs up front -- the target's is needed
+#    for the maintenance-mode exec/scale below and the wp search-replace
+#    exec in step 4; the source's is needed by efs_access_point_path (step
+#    2) to resolve which EFS access point backs its WordPress PVC.
 # ---------------------------------------------------------------------------
+SRC_KUBECONFIG=$(mktemp)
 DST_KUBECONFIG=$(mktemp)
+
+log "Resolving kubeconfig for ${SRC_CLUSTER}..."
+KUBECONFIG="$SRC_KUBECONFIG" aws eks update-kubeconfig --name "$SRC_CLUSTER" --region "$REGION" >/dev/null
 
 log "Resolving kubeconfig for ${DST_CLUSTER}..."
 KUBECONFIG="$DST_KUBECONFIG" aws eks update-kubeconfig --name "$DST_CLUSTER" --region "$REGION" >/dev/null
@@ -129,14 +137,20 @@ export KUBECONFIG="$DST_KUBECONFIG"
 # Resolves the absolute path (relative to the EFS filesystem root) that the
 # given environment's WordPress data actually lives under. The EFS CSI
 # driver's "efs-ap" provisioning mode (see _modules/efs's efs-sc
-# StorageClass) creates one access point per PVC, rooted at a randomly
-# named subdirectory (e.g. /pvc-<uuid>) -- NOT the filesystem root -- so
-# this must be resolved per-environment via the EFS API rather than
-# assumed. This looks up the access point purely via "<project>-<env>"'s
-# EFS filesystem (by its creation token), with no kubectl/EKS dependency.
+# StorageClass) creates a NEW access point every time the WordPress PVC is
+# (re)created, rooted at a subdirectory named after the PV (e.g.
+# /pvc-<uuid>) -- NOT the filesystem root -- and never deletes the old
+# access point if the PVC is later recreated. So a filesystem can
+# accumulate multiple access points over an environment's lifetime, and
+# counting them is not reliable; the only trustworthy source of truth is
+# the live, Bound PVC itself. The EFS CSI driver names the PV identically
+# to its access point's root directory, so a namespace-scoped
+# `kubectl get pvc` (no cluster-scoped PersistentVolume read required)
+# gives the exact right path directly.
 efs_access_point_path() {
   local cluster="$1"
-  local fs_id ap_count path
+  local kubeconfig="$2"
+  local fs_id volume_name path matching_count
 
   fs_id=$(aws efs describe-file-systems --region "$REGION" \
     --query "FileSystems[?CreationToken=='${cluster}'].FileSystemId" --output text)
@@ -145,17 +159,23 @@ efs_access_point_path() {
     return 1
   fi
 
-  ap_count=$(aws efs describe-access-points --file-system-id "$fs_id" --region "$REGION" \
-    --query 'length(AccessPoints)' --output text)
-  if [ "$ap_count" != "1" ]; then
-    echo "Expected exactly 1 EFS access point on file system ${fs_id} (${cluster}), found ${ap_count}. Refusing to guess which one backs the WordPress PVC." >&2
+  volume_name=$(KUBECONFIG="$kubeconfig" kubectl get pvc -n "$NAMESPACE" \
+    -l "app.kubernetes.io/instance=${RELEASE_NAME}" \
+    -o jsonpath='{.items[0].spec.volumeName}')
+  if [ -z "$volume_name" ]; then
+    echo "Could not resolve the bound PV name for the WordPress PVC on ${cluster}." >&2
     return 1
   fi
 
-  path=$(aws efs describe-access-points --file-system-id "$fs_id" --region "$REGION" \
-    --query 'AccessPoints[0].RootDirectory.Path' --output text)
-  if [ -z "$path" ] || [ "$path" = "None" ]; then
-    echo "Could not resolve RootDirectory.Path for the access point on file system ${fs_id} (${cluster})." >&2
+  path="/${volume_name}"
+
+  # Sanity check: confirm that path is actually an available access point
+  # on the expected file system, so a bastion-side kubeconfig/PVC mismatch
+  # fails loudly instead of silently resolving a bogus path.
+  matching_count=$(aws efs describe-access-points --file-system-id "$fs_id" --region "$REGION" \
+    --query "length(AccessPoints[?RootDirectory.Path=='${path}' && LifeCycleState=='available'])" --output text)
+  if [ "$matching_count" != "1" ]; then
+    echo "PVC-reported path ${path} does not match exactly one available EFS access point on file system ${fs_id} (${cluster}); found ${matching_count}." >&2
     return 1
   fi
 
@@ -248,8 +268,8 @@ log "Database copy complete."
 #    source's content under a path the target's pod never mounts.
 # ---------------------------------------------------------------------------
 log "Resolving EFS access-point root directories for ${SRC_CLUSTER} and ${DST_CLUSTER}..."
-SRC_AP_PATH=$(efs_access_point_path "$SRC_CLUSTER")
-DST_AP_PATH=$(efs_access_point_path "$DST_CLUSTER")
+SRC_AP_PATH=$(efs_access_point_path "$SRC_CLUSTER" "$SRC_KUBECONFIG")
+DST_AP_PATH=$(efs_access_point_path "$DST_CLUSTER" "$DST_KUBECONFIG")
 
 # Safety net: refuse to proceed if either path resolved to the filesystem
 # root -- that's exactly the condition that caused a prior incident where

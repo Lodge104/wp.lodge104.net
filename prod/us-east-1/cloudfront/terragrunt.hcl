@@ -49,6 +49,8 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
+    create_distribution = true
+    
     comment = "${local.project} ${local.env} distribution"
     # Multisite "store" site shares this distribution/origin. The legacy
     # cdn.lodge104.net alias remains on the separate media distribution.

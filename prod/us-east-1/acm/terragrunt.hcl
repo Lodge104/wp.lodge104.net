@@ -32,6 +32,7 @@ inputs = merge(
     subject_alternative_names = [
       "*.${local.env}.wp.${local.domain}",
       local.domain,
+      "www.${local.domain}",
       "store.${local.domain}",
       "cdn.${local.domain}",
     ]

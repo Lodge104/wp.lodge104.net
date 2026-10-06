@@ -56,6 +56,7 @@ inputs = merge(
       "${local.env}.wp.${local.domain}",
       "store.${local.env}.wp.${local.domain}",
       local.domain,
+      "www.${local.domain}",
       "store.${local.domain}",
     ]
 

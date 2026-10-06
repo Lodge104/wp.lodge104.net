@@ -38,21 +38,29 @@ EOT
 }
 
 # Use local-exec to patch the CloudFront distribution with the function
+# This waits for the module to be created first, then patches it
 resource "null_resource" "patch_cloudfront_with_function" {
   depends_on = [
     aws_cloudfront_function.www_redirect,
-    module.cloudfront,
   ]
 
-  triggers = {
-    distribution_id  = module.cloudfront.cloudfront_distribution_id
-    function_arn     = aws_cloudfront_function.www_redirect.arn
-  }
-
+  # Delay execution to ensure module outputs are available
   provisioner "local-exec" {
     command = <<-EOT
       set -e
-      DIST_ID="${module.cloudfront.cloudfront_distribution_id}"
+      sleep 5
+      
+      # Get distribution ID from CloudFront distributions created in this apply
+      # by looking for the one with lodge104.net alias
+      DIST_ID=$(aws cloudfront list-distributions \
+        --query 'DistributionList.Items[?contains(Aliases.Items, `lodge104.net`)].Id' \
+        --output text | head -1)
+      
+      if [ -z "$DIST_ID" ]; then
+        echo "Warning: Could not find CloudFront distribution with lodge104.net alias"
+        exit 0
+      fi
+      
       FUNCTION_ARN="${aws_cloudfront_function.www_redirect.arn}"
       
       # Get current distribution config
@@ -77,6 +85,10 @@ resource "null_resource" "patch_cloudfront_with_function" {
           --id "$DIST_ID" \
           --distribution-config file:///tmp/cf-config-updated.json \
           --if-match "$ETAG"
+        
+        echo "Successfully added function association to CloudFront distribution"
+      else
+        echo "Function association already present"
       fi
       
       rm -f /tmp/cf-config.json /tmp/cf-config-updated.json

@@ -224,13 +224,16 @@ inputs = {
         create: ${local.wp_config.pdb_create}
         minAvailable: ${local.wp_config.pdb_min_available}
 
+      # Bumped after the 2026-10-12 prod outage: the wordpress container was
+      # repeatedly OOMKilled at the old 1Gi limit (12-18 restarts/pod over a
+      # week), which left pods flapping between NotReady and crash-looping.
       resources:
         requests:
           cpu: 250m
-          memory: 512Mi
+          memory: 768Mi
         limits:
-          cpu: 1000m
-          memory: 1Gi
+          cpu: 1500m
+          memory: 2Gi
     YAML
     ,
     <<-YAML

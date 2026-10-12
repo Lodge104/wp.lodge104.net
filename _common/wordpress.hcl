@@ -97,6 +97,58 @@ locals {
     autoscaling:
       enabled: true
 
+    # Self-healing fix for a prod outage on 2026-10-12: the Bitnami entrypoint
+    # bakes DB_PASSWORD as a literal string into the persisted wp-config.php
+    # at first install, and can never rewrite it afterwards (wp-config.php
+    # ends up 444/owned by uid 50000, unwritable by the uid-1001 runtime
+    # user, and wordpressSkipInstall further skips re-templating). If the
+    # RDS master password is ever reset out-of-band, every pod starts
+    # failing "Access denied for user" against MySQL and the whole site
+    # goes down, with no amount of pod restarts fixing it, because new pods
+    # restore the same stale persisted file from the shared EFS volume.
+    #
+    # This sidecar polls the persisted wp-config.php and -- if it still has
+    # a literal DB_PASSWORD -- rewrites it to read the password from the
+    # already-mounted WORDPRESS_DATABASE_PASSWORD_FILE secret at runtime
+    # instead, on every PHP request. That way a future credential rotation
+    # just works without needing another manual fix like this one did.
+    sidecars:
+      - name: wp-config-db-password-fix
+        image: registry-1.docker.io/bitnami/wordpress:latest
+        securityContext:
+          runAsUser: 0
+          runAsNonRoot: false
+          allowPrivilegeEscalation: false
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        volumeMounts:
+          - name: wordpress-data
+            mountPath: /bitnami/wordpress
+            subPath: wordpress
+        command:
+          - /bin/bash
+          - -ec
+          - |
+            CONF=/bitnami/wordpress/wp-config.php
+            MARKER="file_get_contents( '/secrets/mariadb-password' )"
+            echo "wp-config-db-password-fix: watching $CONF"
+            while true; do
+              if [[ -f "$CONF" ]] && grep -q "define( 'DB_PASSWORD'" "$CONF" && ! grep -qF "$MARKER" "$CONF"; then
+                echo "wp-config-db-password-fix: patching literal DB_PASSWORD -> dynamic secret read"
+                cp "$CONF" "$CONF.bak-$(date +%s)"
+                chmod u+w "$CONF"
+                sed -i "s#define( 'DB_PASSWORD',.*#define( 'DB_PASSWORD', trim( file_get_contents( '/secrets/mariadb-password' ) ) );#" "$CONF"
+                chmod 444 "$CONF"
+                echo "wp-config-db-password-fix: patched"
+              fi
+              sleep 60
+            done
+
     # In-cluster Memcached (Bitnami sub-chart) replaces the managed
     # ElastiCache service -- cost optimization, see issue #32. When
     # enabled, the chart auto-wires WORDPRESS's cache host/port to this

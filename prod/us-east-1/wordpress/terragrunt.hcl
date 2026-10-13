@@ -197,6 +197,10 @@ inputs = {
       # ElastiCache endpoint needed. See issue #32.
 
       wordpressExtraConfigContent: |
+        if (isset($_SERVER['HTTP_HOST']) && strcasecmp($_SERVER['HTTP_HOST'], 'www.${local.domain}') === 0) {
+          header('Location: https://${local.domain}' . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+          exit;
+        }
         define( 'WP_CACHE', true );
         define( 'AS3CF_SETTINGS', serialize( array(
             'provider' => 'aws',
@@ -258,9 +262,12 @@ inputs = {
           - name: store.${local.env}.wp.${local.domain}
             path: /
             pathType: Prefix
-          # Root-domain aliases are accepted by the prod CloudFront
-          # distribution and must route to this same WordPress release.
+          # Root-domain aliases are accepted by prod CloudFront and route to
+          # this release; wp-config redirects www to the canonical apex.
           - name: ${local.domain}
+            path: /
+            pathType: Prefix
+          - name: www.${local.domain}
             path: /
             pathType: Prefix
           - name: store.${local.domain}
@@ -323,6 +330,10 @@ inputs = {
                   [ -f /bitnami/wordpress/wp-config.php ] && break
                   sleep 1
                 done
+                if [ ! -f /bitnami/wordpress/wp-config.php ]; then
+                  echo "Timed out waiting for /bitnami/wordpress/wp-config.php" >&2
+                  exit 1
+                fi
                 mkdir -p /bitnami/wordpress/.well-known
                 ln -sfn /bitnami/wordpress/.well-known /opt/bitnami/wordpress/.well-known
     YAML

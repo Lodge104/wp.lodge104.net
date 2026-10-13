@@ -1,7 +1,7 @@
 # Common Amazon Managed Service for Prometheus (AMP) defaults -- override in
 # each env's terragrunt.hcl as needed.
 #
-# Uses the fully-managed AMP collector ("scraper") introduced in 2026 instead
+# Uses the fully-managed AMP collector ("scraper") instead
 # of a self-managed ADOT Collector deployment: AWS provisions, scales, and
 # operates the scrape + remote-write pipeline directly against the EKS
 # cluster's VPC, so there are no collector pods, IAM roles for service

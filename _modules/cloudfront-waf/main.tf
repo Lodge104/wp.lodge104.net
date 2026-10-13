@@ -116,17 +116,39 @@ resource "aws_wafv2_web_acl" "this" {
                 }
 
                 statement {
-                  byte_match_statement {
-                    search_string         = "jetpack=comms"
-                    positional_constraint = "CONTAINS"
+                  and_statement {
+                    statement {
+                      byte_match_statement {
+                        search_string         = "/"
+                        positional_constraint = "EXACTLY"
 
-                    field_to_match {
-                      query_string {}
+                        field_to_match {
+                          uri_path {}
+                        }
+
+                        text_transformation {
+                          priority = 0
+                          type     = "NONE"
+                        }
+                      }
                     }
 
-                    text_transformation {
-                      priority = 0
-                      type     = "NONE"
+                    statement {
+                      byte_match_statement {
+                        search_string         = "comms"
+                        positional_constraint = "EXACTLY"
+
+                        field_to_match {
+                          single_query_argument {
+                            name = "jetpack"
+                          }
+                        }
+
+                        text_transformation {
+                          priority = 0
+                          type     = "NONE"
+                        }
+                      }
                     }
                   }
                 }

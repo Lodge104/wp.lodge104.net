@@ -114,7 +114,7 @@ locals {
     # just works without needing another manual fix like this one did.
     sidecars:
       - name: wp-config-db-password-fix
-        image: registry-1.docker.io/bitnami/wordpress:latest
+        image: registry-1.docker.io/bitnami/wordpress:6.8.2-debian-12-r4
         securityContext:
           runAsUser: 0
           runAsNonRoot: false

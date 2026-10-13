@@ -3,6 +3,13 @@
 locals {
   enable_aws_load_balancer_controller = true
 
+  # Required for the wordpress chart's HPA (autoscaling.enabled in
+  # _common/wordpress.hcl) to read cpu/memory utilization. Without this the
+  # HPA sits at <unknown>/target and never scales out, so wordpress is stuck
+  # at its static replicaCount even under memory pressure. See prod outage
+  # postmortem (2026-10-12).
+  enable_metrics_server = true
+
   # Lets workload pods (e.g. WordPress) read AWS Secrets Manager secrets
   # directly via EKS Pod Identity, mounted/synced through a
   # SecretProviderClass instead of static Terraform-managed Secret snapshots.

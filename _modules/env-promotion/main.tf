@@ -13,11 +13,19 @@ terraform {
 
 locals {
   # Clusters that could ever be a promotion *target* -- the ones the bastion
-  # needs post-copy kubectl access to in order to run wp search-replace.
-  # (Resolving each environment's EFS access-point directory, see
-  # files/ssm-promote.sh, goes through the EFS API directly and needs no
-  # kubectl/EKS access, so source-only clusters don't need an access entry.)
+  # needs post-copy edit access to (maintenance-mode exec/scale, and the
+  # wp search-replace exec in files/ssm-promote.sh step 4).
   target_envs = distinct([for p in var.allowed_promotions : p.target])
+
+  # Clusters that could ever be a promotion *source* -- the EFS
+  # access-point resolution in files/ssm-promote.sh (efs_access_point_path)
+  # does a namespace-scoped `kubectl get pvc` to find the live, bound
+  # access point for the WordPress PVC, since EFS access points accumulate
+  # over an environment's lifetime (one per PVC (re)creation, never
+  # cleaned up) and can no longer be assumed to number exactly one per
+  # file system. Source-only clusters only need read access for this, not
+  # edit.
+  source_envs = distinct([for p in var.allowed_promotions : p.source])
 
   # Only grant access entries for clusters that actually exist yet, so this
   # module can be applied before every environment is bootstrapped (mirrors
@@ -25,6 +33,16 @@ locals {
   existing_target_envs = toset([
     for env in local.target_envs : env
     if contains(data.aws_eks_clusters.all.names, "${var.project_name}-${env}")
+  ])
+
+  # Source-only envs that aren't already covered by a target (edit) access
+  # entry -- avoids creating two access entries for the same cluster when
+  # an environment is both a source and a target (e.g. "test" in
+  # prod->test and test->dev).
+  existing_source_only_envs = toset([
+    for env in local.source_envs : env
+    if contains(data.aws_eks_clusters.all.names, "${var.project_name}-${env}") &&
+    !contains(local.target_envs, env)
   ])
 }
 
@@ -126,6 +144,40 @@ resource "aws_eks_access_policy_association" "bastion_edit" {
   }
 
   depends_on = [aws_eks_access_entry.bastion]
+}
+
+# ---------------------------------------------------------------------------
+# Grants the bastion's IAM role read-only Kubernetes access to clusters
+# that are only ever a promotion *source* (never a target), namespace-
+# scoped to the WordPress release's namespace. files/ssm-promote.sh's
+# efs_access_point_path needs this to `kubectl get pvc` the source
+# cluster's live, bound WordPress PVC and resolve its EFS access-point
+# path -- see the comment above efs_access_point_path for why counting
+# access points on the file system is no longer reliable.
+# ---------------------------------------------------------------------------
+resource "aws_eks_access_entry" "bastion_source_only" {
+  for_each = local.existing_source_only_envs
+
+  cluster_name  = "${var.project_name}-${each.value}"
+  principal_arn = var.bastion_role_arn
+  type          = "STANDARD"
+
+  tags = var.tags
+}
+
+resource "aws_eks_access_policy_association" "bastion_view" {
+  for_each = local.existing_source_only_envs
+
+  cluster_name  = "${var.project_name}-${each.value}"
+  principal_arn = var.bastion_role_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+
+  access_scope {
+    type       = "namespace"
+    namespaces = [var.wordpress_namespace]
+  }
+
+  depends_on = [aws_eks_access_entry.bastion_source_only]
 }
 
 # ---------------------------------------------------------------------------

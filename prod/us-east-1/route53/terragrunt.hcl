@@ -123,6 +123,23 @@ inputs = merge(
           zone_id = local.alb_zone_id
         }
       }
+      # www subdomain - redirects to apex domain via CloudFront
+      www_cloudfront_ipv4 = {
+        full_name = "www.${local.domain}"
+        type      = "A"
+        alias = {
+          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
+          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
+        }
+      }
+      www_cloudfront_ipv6 = {
+        full_name = "www.${local.domain}"
+        type      = "AAAA"
+        alias = {
+          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
+          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
+        }
+      }
     }
   }
 )

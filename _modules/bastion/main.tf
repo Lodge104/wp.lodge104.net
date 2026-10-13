@@ -63,6 +63,20 @@ locals {
 
   efs_security_group_ids = local.create_bastion ? toset(data.aws_security_groups.efs[0].ids) : toset([])
 
+  # The EKS module (terraform-aws-modules/eks/aws) creates a dedicated
+  # control-plane security group per cluster, tagged Name =
+  # "<project>-<env>-cluster", separate from the node group's security
+  # group. Its only inbound rule allows port 443 from the node group's SG
+  # -- fine for kubectl calls made from *outside* the cluster's own VPC
+  # (those resolve the EKS API's public endpoint instead, bypassing this
+  # SG entirely), but when the bastion is co-located in the SAME VPC as a
+  # cluster (see bastion_home_env_preference), AWS's EKS private hosted
+  # zone resolves that cluster's API DNS name to its PRIVATE endpoint ENI,
+  # which IS gated by this SG -- so without an explicit bastion rule here,
+  # kubectl calls against that one cluster time out while every other
+  # (non-co-located) cluster works fine over the public endpoint.
+  eks_cluster_security_group_ids = local.create_bastion ? toset(data.aws_security_groups.eks_cluster[0].ids) : toset([])
+
   common_tags = merge(
     {
       Name = "${var.project_name}-bastion"
@@ -163,6 +177,20 @@ data "aws_security_groups" "efs" {
   filter {
     name   = "group-name"
     values = [for env in var.environment_names : "${var.project_name}-${env}-efs"]
+  }
+
+  filter {
+    name   = "vpc-id"
+    values = values(local.existing_vpcs_by_name)[*].id
+  }
+}
+
+data "aws_security_groups" "eks_cluster" {
+  count = local.create_bastion ? 1 : 0
+
+  filter {
+    name   = "tag:Name"
+    values = [for env in var.environment_names : "${var.project_name}-${env}-cluster"]
   }
 
   filter {
@@ -584,6 +612,29 @@ resource "aws_security_group_rule" "efs_from_bastion_vpc" {
   security_group_id        = each.value
   source_security_group_id = aws_security_group.bastion[0].id
   description              = "NFS from bastion"
+
+  depends_on = [aws_vpc_peering_connection.env]
+}
+
+# Lets the bastion reach every environment's EKS API endpoint over the
+# PRIVATE endpoint path, which is only actually exercised for the one
+# cluster co-located in the bastion's own VPC (see the comment above
+# local.eks_cluster_security_group_ids) -- adding it for every
+# environment's cluster SG is harmless (and future-proof against the
+# bastion's home environment changing) since clusters in other VPCs keep
+# resolving to the public endpoint regardless of this rule.
+resource "aws_security_group_rule" "eks_cluster_api_from_bastion_vpc" {
+  for_each = local.create_bastion ? {
+    for sg_id in local.eks_cluster_security_group_ids : sg_id => sg_id
+  } : {}
+
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = each.value
+  source_security_group_id = aws_security_group.bastion[0].id
+  description              = "EKS API from bastion"
 
   depends_on = [aws_vpc_peering_connection.env]
 }

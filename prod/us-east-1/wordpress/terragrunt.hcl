@@ -197,6 +197,10 @@ inputs = {
       # ElastiCache endpoint needed. See issue #32.
 
       wordpressExtraConfigContent: |
+        if (isset($_SERVER['HTTP_HOST']) && strcasecmp($_SERVER['HTTP_HOST'], 'www.${local.domain}') === 0) {
+          header('Location: https://${local.domain}' . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+          exit;
+        }
         define( 'WP_CACHE', true );
         define( 'AS3CF_SETTINGS', serialize( array(
             'provider' => 'aws',
@@ -224,13 +228,16 @@ inputs = {
         create: ${local.wp_config.pdb_create}
         minAvailable: ${local.wp_config.pdb_min_available}
 
+      # Bumped after the 2026-10-12 prod outage: the wordpress container was
+      # repeatedly OOMKilled at the old 1Gi limit (12-18 restarts/pod over a
+      # week), which left pods flapping between NotReady and crash-looping.
       resources:
         requests:
           cpu: 250m
-          memory: 512Mi
+          memory: 768Mi
         limits:
-          cpu: 1000m
-          memory: 1Gi
+          cpu: 1500m
+          memory: 2Gi
     YAML
     ,
     <<-YAML
@@ -255,9 +262,12 @@ inputs = {
           - name: store.${local.env}.wp.${local.domain}
             path: /
             pathType: Prefix
-          # Root-domain aliases are accepted by the prod CloudFront
-          # distribution and must route to this same WordPress release.
+          # Root-domain aliases are accepted by prod CloudFront and route to
+          # this release; wp-config redirects www to the canonical apex.
           - name: ${local.domain}
+            path: /
+            pathType: Prefix
+          - name: www.${local.domain}
             path: /
             pathType: Prefix
           - name: store.${local.domain}
@@ -282,6 +292,50 @@ inputs = {
         - name: rds-secrets-store
           mountPath: /mnt/secrets-store/rds
           readOnly: true
+    YAML
+    ,
+    <<-YAML
+      # /opt/bitnami/wordpress lives on the container's local (ephemeral) disk
+      # and is recreated fresh from the image on every pod start -- only
+      # wp-config.php and wp-content are symlinked back to the EFS-backed
+      # /bitnami/wordpress PVC by the Bitnami entrypoint. Anything else that
+      # needs to persist and be served from the webroot (e.g. domain
+      # verification files like Apple Pay's
+      # .well-known/apple-developer-merchantid-domain-association, added
+      # manually under /bitnami/wordpress/.well-known) must be symlinked back
+      # the same way, or it silently disappears on every pod restart/recycle.
+      # Prod-only: dev/test have no equivalent domain-verification files, and
+      # this hook raced the entrypoint's first-boot install on fresh/empty
+      # PVCs there -- see IMPORTANT note below.
+      #
+      # IMPORTANT: postStart runs concurrently with the main entrypoint, not
+      # after it. On a brand-new PVC (empty EFS access point), `mkdir -p
+      # /bitnami/wordpress/.well-known` here can race ahead of the entrypoint's
+      # own first-boot install and create a non-empty /bitnami/wordpress
+      # directory before wp-config.php exists. The entrypoint's
+      # is_app_initialized() check only tests whether that directory is
+      # non-empty -- it then wrongly concludes a WordPress install is already
+      # persisted there, skips `wp core install`, and crashes with "wp-config.php
+      # not found". So this hook must wait for wp-config.php to actually exist
+      # (i.e. install has completed, whether on this boot or a previous one)
+      # before touching the directory, not just wait for the directory itself.
+      lifecycleHooks:
+        postStart:
+          exec:
+            command:
+              - /bin/bash
+              - -c
+              - |
+                for i in $(seq 1 180); do
+                  [ -f /bitnami/wordpress/wp-config.php ] && break
+                  sleep 1
+                done
+                if [ ! -f /bitnami/wordpress/wp-config.php ]; then
+                  echo "Timed out waiting for /bitnami/wordpress/wp-config.php" >&2
+                  exit 1
+                fi
+                mkdir -p /bitnami/wordpress/.well-known
+                ln -sfn /bitnami/wordpress/.well-known /opt/bitnami/wordpress/.well-known
     YAML
   ]
 }

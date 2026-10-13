@@ -49,6 +49,8 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
+    create_distribution = true
+    
     comment = "${local.project} ${local.env} distribution"
     # Multisite "store" site shares this distribution/origin. The legacy
     # cdn.lodge104.net alias remains on the separate media distribution.
@@ -56,6 +58,7 @@ inputs = merge(
       "${local.env}.wp.${local.domain}",
       "store.${local.env}.wp.${local.domain}",
       local.domain,
+      "www.${local.domain}",
       "store.${local.domain}",
     ]
 
@@ -116,24 +119,6 @@ inputs = merge(
           origin_ssl_protocols   = ["TLSv1.2"]
         }
       }
-      apple = {
-        domain_name           = "lodge104-apple.s3.us-east-1.amazonaws.com"
-        origin_access_control = "apple-${local.env}"
-      }
-    }
-
-    create_origin_access_control = true
-    origin_access_control = {
-      # Name is env-scoped: CloudFront Origin Access Control names are
-      # unique per AWS account globally (not per distribution or Region), so
-      # a bare "apple" collides across dev/test/prod (409
-      # OriginAccessControlAlreadyExists).
-      "apple-${local.env}" = {
-        description      = "CloudFront access to lodge104-apple"
-        origin_type      = "s3"
-        signing_behavior = "always"
-        signing_protocol = "sigv4"
-      }
     }
 
     default_cache_behavior = merge(
@@ -149,7 +134,7 @@ inputs = merge(
     ordered_cache_behavior = concat(
       [merge(local.common.locals.error_page_behavior, {
         path_pattern     = "/.well-known/*"
-        target_origin_id = "apple"
+        target_origin_id = "alb"
       })],
       [
         for behavior in local.common.locals.ordered_cache_behavior : merge(

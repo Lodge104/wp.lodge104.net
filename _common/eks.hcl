@@ -1,7 +1,7 @@
 # Common EKS defaults – override in each env's terragrunt.hcl as needed.
 # Module: terraform-aws-modules/eks/aws ~> 21.x (requires AWS provider >= 6.0).
 locals {
-  kubernetes_version = "1.36"
+  kubernetes_version = "1.37"
 
   endpoint_public_access  = true
   endpoint_private_access = true

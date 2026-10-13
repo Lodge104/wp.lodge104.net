@@ -65,7 +65,10 @@ resource "aws_wafv2_web_acl" "this" {
   # "<?xml version=\"1.0\"?><methodCall>..."), and the leading "<?xml"
   # reliably false-positives against CrossSiteScripting_BODY, blocking
   # every legitimate XML-RPC call (Jetpack, pingbacks, remote publishing)
-  # before it reaches WordPress.
+  # before it reaches WordPress. Jetpack's signed "comms" sync protocol is
+  # excluded too: it POSTs an XML body to "/" (not /xmlrpc.php) with
+  # "?jetpack=comms" in the query string, which false-positives the same
+  # way and would otherwise block Jetpack's connection/sync traffic.
   rule {
     name     = "CommonRuleSet-body-block-public"
     priority = 11
@@ -108,6 +111,44 @@ resource "aws_wafv2_web_acl" "this" {
                     text_transformation {
                       priority = 0
                       type     = "NONE"
+                    }
+                  }
+                }
+
+                statement {
+                  and_statement {
+                    statement {
+                      byte_match_statement {
+                        search_string         = "/"
+                        positional_constraint = "EXACTLY"
+
+                        field_to_match {
+                          uri_path {}
+                        }
+
+                        text_transformation {
+                          priority = 0
+                          type     = "NONE"
+                        }
+                      }
+                    }
+
+                    statement {
+                      byte_match_statement {
+                        search_string         = "comms"
+                        positional_constraint = "EXACTLY"
+
+                        field_to_match {
+                          single_query_argument {
+                            name = "jetpack"
+                          }
+                        }
+
+                        text_transformation {
+                          priority = 0
+                          type     = "NONE"
+                        }
+                      }
                     }
                   }
                 }

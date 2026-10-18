@@ -10,6 +10,18 @@ locals {
   # postmortem (2026-10-12).
   enable_metrics_server = true
 
+  # The wordpress HPA can scale up to 10 replicas, but
+  # wordpress.podAntiAffinityPreset is "hard" (requiredDuringScheduling), so
+  # at most one wordpress pod can land per node. With a static node count
+  # and nothing reacting to unschedulable pods, HPA scale-outs beyond the
+  # node count just sit in FailedScheduling ("didn't match pod anti-affinity
+  # rules") until HPA scales back down -- autoscaling never actually added
+  # capacity. Cluster Autoscaler watches for exactly this (pending pods it
+  # can resolve by adding a node) and scales the node group's ASG up to its
+  # max_size, using the k8s.io/cluster-autoscaler/* tags added to each node
+  # group in */us-east-1/eks/terragrunt.hcl for ASG auto-discovery.
+  enable_cluster_autoscaler = true
+
   # Lets workload pods (e.g. WordPress) read AWS Secrets Manager secrets
   # directly via EKS Pod Identity, mounted/synced through a
   # SecretProviderClass instead of static Terraform-managed Secret snapshots.

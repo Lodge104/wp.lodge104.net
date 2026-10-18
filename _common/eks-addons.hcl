@@ -22,6 +22,23 @@ locals {
   # group in */us-east-1/eks/terragrunt.hcl for ASG auto-discovery.
   enable_cluster_autoscaler = true
 
+  # The chart defaults image.tag to match the cluster's Kubernetes minor
+  # version (cluster_version = "1.37" in _common/eks.hcl), but upstream
+  # cluster-autoscaler releases lag behind new Kubernetes minor versions --
+  # there is no v1.37.0 image published yet, only up to v1.36.1 as of
+  # 2026-10-18 (https://github.com/kubernetes/autoscaler/releases). Pin to
+  # the latest actually-published version; cluster-autoscaler is documented
+  # as compatible with a cluster up to one minor version ahead of its own.
+  # Bump this once a v1.37.x image exists upstream.
+  cluster_autoscaler = {
+    set = [
+      {
+        name  = "image.tag"
+        value = "v1.36.1"
+      }
+    ]
+  }
+
   # Lets workload pods (e.g. WordPress) read AWS Secrets Manager secrets
   # directly via EKS Pod Identity, mounted/synced through a
   # SecretProviderClass instead of static Terraform-managed Secret snapshots.

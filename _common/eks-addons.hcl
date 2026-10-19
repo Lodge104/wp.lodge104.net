@@ -63,6 +63,8 @@ locals {
         syncSecret = {
           enabled = true
         }
+        enableSecretRotation = true
+        rotationPollInterval = "2m"
       })
     ]
   }

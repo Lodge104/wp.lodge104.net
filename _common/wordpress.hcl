@@ -114,7 +114,17 @@ locals {
     # just works without needing another manual fix like this one did.
     sidecars:
       - name: wp-config-db-password-fix
-        image: registry-1.docker.io/bitnami/wordpress:6.8.2-debian-12-r4
+        # NOTE: do not pin this to a specific version tag (e.g.
+        # "6.8.2-debian-12-r4"). As of Bitnami's 2025 catalog changes, the
+        # free docker.io/bitnami/* namespace only publishes a "latest" tag
+        # (plus digest-only/signature entries) -- versioned tags are retired
+        # from the free tier and 404 on pull. A prior "pin the version" PR
+        # review fix set this to 6.8.2-debian-12-r4 and caused an
+        # ImagePullBackOff outage-in-waiting on the next rollout (2026-10-13)
+        # since that tag no longer resolves. If reproducibility without a
+        # floating tag is needed, pin by immutable digest instead
+        # (image@sha256:...), not by version tag.
+        image: registry-1.docker.io/bitnami/wordpress:latest
         securityContext:
           runAsUser: 0
           runAsNonRoot: false

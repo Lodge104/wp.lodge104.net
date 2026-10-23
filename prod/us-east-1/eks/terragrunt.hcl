@@ -65,6 +65,14 @@ inputs = merge(
           try(group.iam_role_additional_policies, {}),
           { WordPressS3Access = dependency.wordpress_s3_access.outputs.policy_arn }
         )
+        # Cluster Autoscaler (enabled via eks-addons' enable_cluster_autoscaler)
+        # discovers which ASGs it's allowed to scale by these tags, instead
+        # of managing every ASG in the account. Without them, pods stuck
+        # FailedScheduling due to pod anti-affinity never trigger a scale-up.
+        tags = merge(try(group.tags, {}), {
+          "k8s.io/cluster-autoscaler/enabled"                       = "true"
+          "k8s.io/cluster-autoscaler/${local.project}-${local.env}" = "owned"
+        })
       })
     }
   }

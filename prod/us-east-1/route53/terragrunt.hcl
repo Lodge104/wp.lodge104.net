@@ -123,23 +123,14 @@ inputs = merge(
           zone_id = local.alb_zone_id
         }
       }
-      # www subdomain - redirects to apex domain via CloudFront
-      www_cloudfront_ipv4 = {
-        full_name = "www.${local.domain}"
-        type      = "A"
-        alias = {
-          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
-          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
-        }
-      }
-      www_cloudfront_ipv6 = {
-        full_name = "www.${local.domain}"
-        type      = "AAAA"
-        alias = {
-          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
-          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
-        }
-      }
+      # NOTE: www.${local.domain} is NOT defined here. This module is scoped
+      # to the prod.wp.${local.domain} delegated zone (see `name` above), not
+      # the apex lodge104.net zone, so a record with
+      # full_name = "www.${local.domain}" actually got created as
+      # "www.lodge104.net.prod.wp.lodge104.net" -- a useless name nobody
+      # queries. The real www alias lives in
+      # global/route53-prod-cutover/terragrunt.hcl, which manages the apex
+      # zone where www.${local.domain} actually belongs.
     }
   }
 )

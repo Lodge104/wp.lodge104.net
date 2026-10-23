@@ -77,31 +77,71 @@ resource "aws_wafv2_web_acl" "this" {
       block {}
     }
 
+    # NOTE: AWS WAFv2 (both the API itself and the Terraform provider's
+    # unrolled aws_wafv2_web_acl schema) only supports nesting statement
+    # blocks (and_statement/or_statement/not_statement) up to 3 levels deep.
+    # The "natural" way to express this -- block if a body-rule label fired
+    # AND NOT(path is one of "/wp-admin*", "/xmlrpc.php" exactly, OR
+    # (path == "/" AND jetpack comms query arg)) -- nests and_statement 4
+    # levels deep and fails with "Unsupported block type: Blocks of type
+    # \"and_statement\" are not expected here".
+    #
+    # Rewritten via De Morgan's law to the logically identical form:
+    #   NOT(OR(A, B, AND(C, D))) == NOT(A) AND NOT(B) AND (NOT(C) OR NOT(D))
+    # which keeps every branch at <= 3 levels of nesting.
     statement {
       and_statement {
+        # NOT "/wp-admin*"
         statement {
           not_statement {
             statement {
-              or_statement {
-                statement {
-                  byte_match_statement {
-                    search_string         = "/wp-admin"
-                    positional_constraint = "STARTS_WITH"
+              byte_match_statement {
+                search_string         = "/wp-admin"
+                positional_constraint = "STARTS_WITH"
 
-                    field_to_match {
-                      uri_path {}
-                    }
-
-                    text_transformation {
-                      priority = 0
-                      type     = "NONE"
-                    }
-                  }
+                field_to_match {
+                  uri_path {}
                 }
 
+                text_transformation {
+                  priority = 0
+                  type     = "NONE"
+                }
+              }
+            }
+          }
+        }
+
+        # NOT "/xmlrpc.php" (exact)
+        statement {
+          not_statement {
+            statement {
+              byte_match_statement {
+                search_string         = "/xmlrpc.php"
+                positional_constraint = "EXACTLY"
+
+                field_to_match {
+                  uri_path {}
+                }
+
+                text_transformation {
+                  priority = 0
+                  type     = "NONE"
+                }
+              }
+            }
+          }
+        }
+
+        # NOT (path == "/" AND jetpack query arg == "comms"), expanded to
+        # NOT(path == "/") OR NOT(jetpack query arg == "comms")
+        statement {
+          or_statement {
+            statement {
+              not_statement {
                 statement {
                   byte_match_statement {
-                    search_string         = "/xmlrpc.php"
+                    search_string         = "/"
                     positional_constraint = "EXACTLY"
 
                     field_to_match {
@@ -114,41 +154,25 @@ resource "aws_wafv2_web_acl" "this" {
                     }
                   }
                 }
+              }
+            }
 
+            statement {
+              not_statement {
                 statement {
-                  and_statement {
-                    statement {
-                      byte_match_statement {
-                        search_string         = "/"
-                        positional_constraint = "EXACTLY"
+                  byte_match_statement {
+                    search_string         = "comms"
+                    positional_constraint = "EXACTLY"
 
-                        field_to_match {
-                          uri_path {}
-                        }
-
-                        text_transformation {
-                          priority = 0
-                          type     = "NONE"
-                        }
+                    field_to_match {
+                      single_query_argument {
+                        name = "jetpack"
                       }
                     }
 
-                    statement {
-                      byte_match_statement {
-                        search_string         = "comms"
-                        positional_constraint = "EXACTLY"
-
-                        field_to_match {
-                          single_query_argument {
-                            name = "jetpack"
-                          }
-                        }
-
-                        text_transformation {
-                          priority = 0
-                          type     = "NONE"
-                        }
-                      }
+                    text_transformation {
+                      priority = 0
+                      type     = "NONE"
                     }
                   }
                 }

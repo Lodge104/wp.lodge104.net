@@ -44,7 +44,17 @@ locals {
     # behavior), which is the desired trade-off here: it keeps each
     # site's cached responses separate instead of collapsing them
     # together across aliases.
-    headers         = ["Host"]
+    #
+    # User-Agent is forwarded too: CloudFront's legacy forwarded_values
+    # model replaces any header not in this whitelist with a fixed
+    # placeholder value sent to the origin -- for User-Agent that
+    # placeholder is the literal string "Amazon CloudFront". Defender
+    # Security's bot/lockout logging (and anything else UA-dependent)
+    # was logging every single visitor as that one fake user agent
+    # instead of their real browser/bot UA. Folding User-Agent into the
+    # cache key further fragments the already-short 30s micro-cache, but
+    # that's an acceptable trade-off for correct bot detection.
+    headers         = ["Host", "User-Agent"]
     cookies_forward = "whitelist"
     cookies_whitelisted_names = [
       "comment_author_*",
@@ -75,8 +85,13 @@ locals {
     use_forwarded_values = true
     query_string         = true
     # See default_cache_behavior above -- wp-admin/wp-login/xmlrpc are
-    # also per-site and need the real Host header to reach the right blog.
-    headers         = ["Host"]
+    # also per-site and need the real Host header to reach the right blog,
+    # and User-Agent needs to be forwarded so Defender Security's login
+    # lockout/bot logging on wp-login.php sees the real visitor UA instead
+    # of CloudFront's "Amazon CloudFront" placeholder. No caching happens
+    # on this behavior (max_ttl = 0), so there's no cache-key fragmentation
+    # cost to worry about here.
+    headers         = ["Host", "User-Agent"]
     cookies_forward = "all"
   }
 

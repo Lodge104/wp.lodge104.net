@@ -10,6 +10,15 @@ locals {
   project   = local.project_vars.locals.project_name
   domain    = local.project_vars.locals.domain
   wp_config = local.env_vars.locals.wordpress
+
+  # Hops Apache's mod_remoteip should trust and peel off the
+  # X-Forwarded-For chain to resolve the real visitor IP: the VPC CIDR
+  # (the ALB's own hop into the pod) and CloudFront's origin-facing
+  # ranges (the hop the ALB appends, representing the CloudFront edge).
+  apache_remoteip_internal_proxies = concat(
+    [local.env_vars.locals.vpc_cidr],
+    local.common.locals.cloudfront_origin_facing_cidrs
+  )
 }
 
 include "root" {
@@ -154,9 +163,9 @@ inputs = {
   # The RDS secret is mounted via the AWS Secrets Store CSI Driver (Pod
   # Identity) instead of a static Terraform-managed snapshot, so it stays in
   # sync across password rotations without any custom reconciliation logic.
-  use_secrets_store_csi_driver = true
-  eks_cluster_name             = dependency.eks.outputs.cluster_name
-  pod_identity_service_account = local.common.locals.release_name
+  use_secrets_store_csi_driver   = true
+  eks_cluster_name               = dependency.eks.outputs.cluster_name
+  pod_identity_service_account   = local.common.locals.release_name
   wordpress_s3_access_policy_arn = dependency.wordpress_s3_access.outputs.policy_arn
 
   create_wordpress_admin_credentials = true
@@ -259,6 +268,25 @@ inputs = {
         - name: rds-secrets-store
           mountPath: /mnt/secrets-store/rds
           readOnly: true
+    YAML
+    ,
+    <<-YAML
+      # Without this, Apache/WordPress sees every request's client IP as
+      # one of CloudFront's/the ALB's own IPs instead of the real visitor,
+      # since CloudFront and the ALB are each a proxy hop in front of
+      # Apache. That breaks any IP-based security logic (e.g. Defender
+      # Security's Session Protection feature, which kills a session the
+      # moment the client IP appears to "change" between requests -- it
+      # was really just a different CloudFront/ALB IP every time, not the
+      # visitor). mod_remoteip resolves the real client IP from
+      # X-Forwarded-For and rewrites REMOTE_ADDR to match, once told which
+      # hops to trust.
+      apacheConfiguration: |
+        LoadModule remoteip_module modules/mod_remoteip.so
+        RemoteIPHeader X-Forwarded-For
+        %{for cidr in local.apache_remoteip_internal_proxies~}
+        RemoteIPInternalProxy ${cidr}
+        %{endfor~}
     YAML
   ]
 }

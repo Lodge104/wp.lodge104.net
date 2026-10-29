@@ -10,6 +10,15 @@ locals {
   project   = local.project_vars.locals.project_name
   domain    = local.project_vars.locals.domain
   wp_config = local.env_vars.locals.wordpress
+
+  # Hops Apache's mod_remoteip should trust and peel off the
+  # X-Forwarded-For chain to resolve the real visitor IP: the VPC CIDR
+  # (the ALB's own hop into the pod) and CloudFront's origin-facing
+  # ranges (the hop the ALB appends, representing the CloudFront edge).
+  apache_remoteip_internal_proxies = concat(
+    [local.env_vars.locals.vpc_cidr],
+    local.common.locals.cloudfront_origin_facing_cidrs
+  )
 }
 
 include "root" {
@@ -292,6 +301,27 @@ inputs = {
         - name: rds-secrets-store
           mountPath: /mnt/secrets-store/rds
           readOnly: true
+    YAML
+    ,
+    <<-YAML
+      # Without this, Apache/WordPress sees every request's client IP as
+      # one of CloudFront's/the ALB's own IPs instead of the real visitor,
+      # since CloudFront and the ALB are each a proxy hop in front of
+      # Apache. That breaks any IP-based security logic (e.g. Defender
+      # Security's Session Protection feature, which kills a session the
+      # moment the client IP appears to "change" between requests -- it
+      # was really just a different CloudFront/ALB IP every time, not the
+      # visitor -- confirmed live on 2026-10-29: every logged IP in
+      # Defender's lockout/audit logs fell inside AWS's published
+      # CLOUDFRONT_ORIGIN_FACING ranges). mod_remoteip resolves the real
+      # client IP from X-Forwarded-For and rewrites REMOTE_ADDR to match,
+      # once told which hops to trust.
+      apacheConfiguration: |
+        LoadModule remoteip_module modules/mod_remoteip.so
+        RemoteIPHeader X-Forwarded-For
+        %{for cidr in local.apache_remoteip_internal_proxies~}
+        RemoteIPInternalProxy ${cidr}
+        %{endfor~}
     YAML
     ,
     <<-YAML

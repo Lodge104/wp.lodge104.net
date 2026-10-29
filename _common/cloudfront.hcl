@@ -190,8 +190,8 @@ locals {
         "/checkout*",
         "/my-account*",
         ] : merge(local.wordpress_no_cache_behavior, {
-        path_pattern     = path_pattern
-        target_origin_id = "alb"
+          path_pattern     = path_pattern
+          target_origin_id = "alb"
       })
     ],
     [
@@ -201,8 +201,8 @@ locals {
         "/wp-content/plugins/*",
         "/wp-includes/*",
         ] : merge(local.wordpress_static_asset_behavior, {
-        path_pattern     = path_pattern
-        target_origin_id = "alb"
+          path_pattern     = path_pattern
+          target_origin_id = "alb"
       })
     ]
   )

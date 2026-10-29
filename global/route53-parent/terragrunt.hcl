@@ -15,7 +15,7 @@ dependency "wp_zone" {
   config_path = "../route53-wp"
 
   mock_outputs = {
-    name_servers              = [
+    name_servers = [
       "ns-123.awsdns-01.net",
       "ns-456.awsdns-02.org",
       "ns-789.awsdns-03.co.uk",

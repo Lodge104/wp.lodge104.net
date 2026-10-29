@@ -18,8 +18,8 @@ dependency "eks" {
   config_path = "../eks"
 
   mock_outputs = {
-    cluster_arn                = "arn:aws:eks:${local.region}:000000000000:cluster/${local.project}-${local.env}"
-    cluster_security_group_id  = "sg-00000000000000000"
+    cluster_arn               = "arn:aws:eks:${local.region}:000000000000:cluster/${local.project}-${local.env}"
+    cluster_security_group_id = "sg-00000000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -49,8 +49,8 @@ inputs = merge(
   local.common.locals,
   {
     workspace_alias               = "${local.project}-${local.env}"
-    eks_cluster_arn                = dependency.eks.outputs.cluster_arn
-    eks_cluster_security_group_id  = dependency.eks.outputs.cluster_security_group_id
-    subnet_ids                     = dependency.vpc.outputs.intra_subnets
+    eks_cluster_arn               = dependency.eks.outputs.cluster_arn
+    eks_cluster_security_group_id = dependency.eks.outputs.cluster_security_group_id
+    subnet_ids                    = dependency.vpc.outputs.intra_subnets
   }
 )

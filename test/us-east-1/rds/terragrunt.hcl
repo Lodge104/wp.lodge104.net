@@ -42,7 +42,7 @@ terraform {
       # Timestamped so repeat teardowns don't collide with an earlier final
       # snapshot (DBClusterSnapshotAlreadyExistsFault).
       "-var=final_snapshot_identifier=${local.project}-${local.env}-final-${formatdate("YYYYMMDDhhmmss", timestamp())}",
-      "-var=skip_final_snapshot=false",
+      "-var=skip_final_snapshot=true",
     ]
   }
 }
@@ -70,6 +70,7 @@ inputs = merge(
     }
 
     deletion_protection = false
-    skip_final_snapshot       = false
+    skip_final_snapshot       = true
+    final_snapshot_identifier = "${local.project}-${local.env}-final-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   }
 )

@@ -87,6 +87,30 @@ inputs = merge(
           zone_id = dependency.cdn.outputs.cloudfront_distribution_hosted_zone_id
         }
       }
+      # www subdomain -- served by the same CloudFront distribution as the
+      # root alias, which is where WordPress's wordpressExtraConfigContent
+      # 301-redirects it to the apex domain. This was previously (and
+      # incorrectly) defined in prod/us-east-1/route53/terragrunt.hcl using
+      # full_name = "www.${local.domain}", but that module is scoped to the
+      # prod.wp.${local.domain} delegated zone, not the apex lodge104.net
+      # zone managed here -- so it actually created a useless record named
+      # "www.lodge104.net.prod.wp.lodge104.net" instead of "www.lodge104.net".
+      www_ipv4 = {
+        full_name = "www.${local.domain}"
+        type = "A"
+        alias = {
+          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
+          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
+        }
+      }
+      www_ipv6 = {
+        full_name = "www.${local.domain}"
+        type = "AAAA"
+        alias = {
+          name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
+          zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
+        }
+      }
     }
   }
 )

@@ -78,7 +78,18 @@ inputs = merge(
         iam_role_additional_policies = merge(
           local.common.locals.eks_managed_node_group_defaults.iam_role_additional_policies,
           try(group.iam_role_additional_policies, {}),
-          { WordPressS3Access = dependency.wordpress_s3_access.outputs.policy_arn }
+          # coalesce(): mock_outputs_merge_strategy_with_state only fills in
+          # keys absent from the real output entirely. A destroyed
+          # wordpress_s3_access's policy_arn output key is still present,
+          # just null -- coalesce() falls back to the mock value for that
+          # too, the same way the subnet_ids/control_plane_subnet_ids
+          # length() checks above handle a present-but-empty list.
+          {
+            WordPressS3Access = coalesce(
+              dependency.wordpress_s3_access.outputs.policy_arn,
+              "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
+            )
+          }
         )
         # Cluster Autoscaler (enabled via eks-addons' enable_cluster_autoscaler)
         # discovers which ASGs it's allowed to scale by these tags, instead

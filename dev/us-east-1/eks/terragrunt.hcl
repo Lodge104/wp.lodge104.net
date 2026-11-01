@@ -23,6 +23,7 @@ dependency "vpc" {
     intra_subnets  = ["subnet-00000000000000004", "subnet-00000000000000005", "subnet-00000000000000006"]
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "wordpress_s3_access" {

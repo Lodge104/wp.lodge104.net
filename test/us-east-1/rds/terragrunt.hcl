@@ -22,6 +22,7 @@ dependency "vpc" {
     private_subnets = ["subnet-00000000000000001", "subnet-00000000000000002", "subnet-00000000000000003"]
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "eks" {
@@ -69,7 +70,7 @@ inputs = merge(
       }
     }
 
-    deletion_protection = false
+    deletion_protection       = false
     skip_final_snapshot       = true
     final_snapshot_identifier = "${local.project}-${local.env}-final-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   }

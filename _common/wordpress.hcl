@@ -7,6 +7,35 @@ locals {
   release_name  = "wordpress"
   namespace     = "wordpress"
 
+  # CloudFront's global "origin-facing" managed prefix list -- the same one
+  # _common/alb-security-group.hcl restricts ALB ingress to. Resolved here
+  # at plan/apply time (not hardcoded) so it can't go stale as AWS updates
+  # the list. Each env's wordpress/terragrunt.hcl feeds these CIDRs (plus
+  # its own VPC CIDR) to Apache's mod_remoteip (via apacheConfiguration),
+  # so Apache can correctly peel both proxy hops -- the ALB and the
+  # CloudFront edge -- off the X-Forwarded-For chain and resolve the real
+  # visitor IP instead of REMOTE_ADDR/X-Forwarded-For showing one of
+  # CloudFront's/the ALB's own IPs. Without this, WordPress and plugins
+  # that key security logic off the client IP (e.g. Defender Security's
+  # Session Protection, which locks a session to the client IP and kills
+  # it the moment the IP "changes") see a different CloudFront-owned IP on
+  # almost every request and misbehave accordingly.
+  cloudfront_origin_facing_prefix_list_id = run_cmd(
+    "--terragrunt-quiet",
+    "aws", "ec2", "describe-managed-prefix-lists",
+    "--filters", "Name=prefix-list-name,Values=com.amazonaws.global.cloudfront.origin-facing",
+    "--query", "PrefixLists[0].PrefixListId",
+    "--output", "text"
+  )
+
+  cloudfront_origin_facing_cidrs = jsondecode(run_cmd(
+    "--terragrunt-quiet",
+    "aws", "ec2", "get-managed-prefix-list-entries",
+    "--prefix-list-id", local.cloudfront_origin_facing_prefix_list_id,
+    "--query", "Entries[].Cidr",
+    "--output", "json"
+  ))
+
   # ---------------------------------------------------------------------------
   # Base Helm values applied to all environments.
   # Bundled MariaDB is disabled – Aurora MySQL Serverless (RDS) is used instead.
@@ -18,6 +47,18 @@ locals {
   base_values = <<-YAML
     mariadb:
       enabled: false
+
+    # The free docker.io/bitnami/* namespace only publishes a floating
+    # "latest" tag for this image (see the wp-config-db-password-fix
+    # sidecar's comment below -- versioned tags are retired from the free
+    # tier), so the digest behind "latest" changes in place over time.
+    # IfNotPresent (the chart default) would make a node keep reusing
+    # whatever digest it already cached, so the weekly image-refresh
+    # CronJob below would be a no-op most weeks; Always forces a fresh
+    # manifest/digest check on every pod (re)start, including the ones it
+    # triggers.
+    image:
+      pullPolicy: Always
 
     wordpressScheme: https
     wordpressTablePrefix: wp_
@@ -90,12 +131,113 @@ locals {
 
     metrics:
       enabled: true
+      image:
+        pullPolicy: Always
 
     networkPolicy:
       enabled: true
 
     autoscaling:
       enabled: true
+
+    # ---------------------------------------------------------------------
+    # Weekly image refresh: with image.pullPolicy/metrics.image.pullPolicy
+    # set to Always above, a CronJob rolls this release's Deployment every
+    # Saturday at 04:00 US Eastern so the cluster picks up whatever's
+    # currently behind the floating ":latest" tag (WordPress/PHP point
+    # releases, including security fixes) on a predictable cadence,
+    # instead of only whenever some unrelated pod restart happens to
+    # re-pull it.
+    #
+    # "Without disruption" here reuses the existing RollingUpdate strategy
+    # (updateStrategy above: maxSurge: 0, maxUnavailable: 1) and the PDB
+    # (pdb_create/pdb_min_available, see each env.hcl) -- the same
+    # guarantees already in place for any other Helm upgrade. It is NOT a
+    # zero-capacity-loss rollout: with maxSurge: 0, one pod is taken down
+    # before its replacement is Ready. Dev has pdb_create = false, so nothing
+    # here additionally protects it during the restart; its own replica
+    # count/anti-affinity are the only safety net, matching how a normal
+    # Helm upgrade already behaves there today.
+    #
+    # Scoped to a dedicated ServiceAccount/Role/RoleBinding with only the
+    # verbs `kubectl rollout restart`/`rollout status` need on this
+    # namespace's Deployments/ReplicaSets -- no cluster-wide access.
+    extraDeploy:
+      - apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: wordpress-image-refresh
+          namespace: "{{ .Release.Namespace }}"
+      - apiVersion: rbac.authorization.k8s.io/v1
+        kind: Role
+        metadata:
+          name: wordpress-image-refresh
+          namespace: "{{ .Release.Namespace }}"
+        rules:
+          - apiGroups: ["apps"]
+            resources: ["deployments"]
+            verbs: ["get", "list", "watch", "patch"]
+          - apiGroups: ["apps"]
+            resources: ["replicasets"]
+            verbs: ["get", "list", "watch"]
+      - apiVersion: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        metadata:
+          name: wordpress-image-refresh
+          namespace: "{{ .Release.Namespace }}"
+        roleRef:
+          apiGroup: rbac.authorization.k8s.io
+          kind: Role
+          name: wordpress-image-refresh
+        subjects:
+          - kind: ServiceAccount
+            name: wordpress-image-refresh
+            namespace: "{{ .Release.Namespace }}"
+      - apiVersion: batch/v1
+        kind: CronJob
+        metadata:
+          name: wordpress-image-refresh
+          namespace: "{{ .Release.Namespace }}"
+        spec:
+          # 04:00 America/New_York, every Saturday. The timeZone field
+          # (stable since Kubernetes 1.27; this project runs 1.37, see
+          # _common/eks.hcl) makes the CronJob controller itself account
+          # for DST, instead of this schedule silently drifting an hour
+          # twice a year the way a UTC-only cron expression would.
+          schedule: "0 4 * * 6"
+          timeZone: "America/New_York"
+          concurrencyPolicy: Forbid
+          startingDeadlineSeconds: 1800
+          successfulJobsHistoryLimit: 3
+          failedJobsHistoryLimit: 3
+          jobTemplate:
+            spec:
+              activeDeadlineSeconds: 900
+              backoffLimit: 2
+              template:
+                spec:
+                  serviceAccountName: wordpress-image-refresh
+                  restartPolicy: OnFailure
+                  containers:
+                    - name: kubectl
+                      # Bump this alongside _common/eks.hcl's
+                      # kubernetes_version -- kubectl only needs to be
+                      # within one minor version of the API server per the
+                      # Kubernetes version skew policy, not an exact match.
+                      image: registry.k8s.io/kubectl:v1.37.0
+                      command:
+                        - /bin/sh
+                        - -ec
+                        - |
+                          kubectl rollout restart "deployment/{{ .Release.Name }}" -n "{{ .Release.Namespace }}"
+                          kubectl rollout status "deployment/{{ .Release.Name }}" -n "{{ .Release.Namespace }}" --timeout=600s
+                      resources:
+                        requests:
+                          cpu: 10m
+                          memory: 32Mi
+                        limits:
+                          cpu: 200m
+                          memory: 128Mi
 
     # Self-healing fix for a prod outage on 2026-10-12: the Bitnami entrypoint
     # bakes DB_PASSWORD as a literal string into the persisted wp-config.php

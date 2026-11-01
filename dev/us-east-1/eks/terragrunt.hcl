@@ -23,6 +23,7 @@ dependency "vpc" {
     intra_subnets  = ["subnet-00000000000000004", "subnet-00000000000000005", "subnet-00000000000000006"]
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "wordpress_s3_access" {
@@ -32,6 +33,7 @@ dependency "wordpress_s3_access" {
     policy_arn = "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 terraform {
@@ -48,8 +50,21 @@ inputs = merge(
     # issue #32. Nodes get a public IP (map_public_ip_on_launch = true on
     # the VPC) and rely on security groups for inbound restriction; the
     # control plane ENIs stay on the intra subnets as before.
-    subnet_ids               = dependency.vpc.outputs.public_subnets
-    control_plane_subnet_ids = dependency.vpc.outputs.intra_subnets
+    #
+    # length(...) > 0 fallback: mock_outputs_merge_strategy_with_state only
+    # fills in keys that are absent from the real (e.g. destroyed) vpc
+    # output entirely -- a destroyed vpc's subnet list outputs come back
+    # as [] (present, not missing), so it can't paper over that case.
+    subnet_ids = (
+      length(dependency.vpc.outputs.public_subnets) > 0
+      ? dependency.vpc.outputs.public_subnets
+      : ["subnet-00000000000000001", "subnet-00000000000000002", "subnet-00000000000000003"]
+    )
+    control_plane_subnet_ids = (
+      length(dependency.vpc.outputs.intra_subnets) > 0
+      ? dependency.vpc.outputs.intra_subnets
+      : ["subnet-00000000000000004", "subnet-00000000000000005", "subnet-00000000000000006"]
+    )
 
     eks_managed_node_groups = {
       for name, group in local.env_vars.locals.eks_node_groups : name => merge(group, {
@@ -58,12 +73,23 @@ inputs = merge(
         # module -- ami_type must be set explicitly per group or it
         # silently falls back to the module's own default
         # (AL2023_x86_64_STANDARD), which breaks Graviton instance types.
-        ami_type          = local.common.locals.eks_managed_node_group_defaults.ami_type
+        ami_type         = local.common.locals.eks_managed_node_group_defaults.ami_type
         metadata_options = local.common.locals.eks_managed_node_group_defaults.metadata_options
         iam_role_additional_policies = merge(
           local.common.locals.eks_managed_node_group_defaults.iam_role_additional_policies,
           try(group.iam_role_additional_policies, {}),
-          { WordPressS3Access = dependency.wordpress_s3_access.outputs.policy_arn }
+          # coalesce(): mock_outputs_merge_strategy_with_state only fills in
+          # keys absent from the real output entirely. A destroyed
+          # wordpress_s3_access's policy_arn output key is still present,
+          # just null -- coalesce() falls back to the mock value for that
+          # too, the same way the subnet_ids/control_plane_subnet_ids
+          # length() checks above handle a present-but-empty list.
+          {
+            WordPressS3Access = coalesce(
+              dependency.wordpress_s3_access.outputs.policy_arn,
+              "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
+            )
+          }
         )
       })
     }

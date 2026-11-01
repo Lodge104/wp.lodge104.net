@@ -8,6 +8,6 @@
 # accounts, or Pod Identity associations to manage in-cluster. See
 # _modules/amp.
 locals {
-  scrape_interval     = "30s"
-  log_retention_days  = 14
+  scrape_interval    = "30s"
+  log_retention_days = 14
 }

@@ -33,6 +33,7 @@ dependency "wordpress_s3_access" {
     policy_arn = "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 terraform {
@@ -49,8 +50,21 @@ inputs = merge(
     # issue #32. Nodes get a public IP (map_public_ip_on_launch = true on
     # the VPC) and rely on security groups for inbound restriction; the
     # control plane ENIs stay on the intra subnets as before.
-    subnet_ids               = dependency.vpc.outputs.public_subnets
-    control_plane_subnet_ids = dependency.vpc.outputs.intra_subnets
+    #
+    # length(...) > 0 fallback: see note above the mock_outputs blocks --
+    # a destroyed vpc's subnet outputs come back as [] (present, not
+    # missing), which mock_outputs_merge_strategy_with_state can't paper
+    # over since it only fills in keys that are absent entirely.
+    subnet_ids = (
+      length(dependency.vpc.outputs.public_subnets) > 0
+      ? dependency.vpc.outputs.public_subnets
+      : ["subnet-00000000000000001", "subnet-00000000000000002", "subnet-00000000000000003"]
+    )
+    control_plane_subnet_ids = (
+      length(dependency.vpc.outputs.intra_subnets) > 0
+      ? dependency.vpc.outputs.intra_subnets
+      : ["subnet-00000000000000004", "subnet-00000000000000005", "subnet-00000000000000006"]
+    )
 
     eks_managed_node_groups = {
       for name, group in local.env_vars.locals.eks_node_groups : name => merge(group, {

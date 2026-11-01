@@ -337,7 +337,7 @@ inputs = {
               LoadModule remoteip_module modules/mod_remoteip.so
               RemoteIPHeader X-Forwarded-For
               %{for cidr in local.apache_remoteip_internal_proxies~}
-              RemoteIPInternalProxy ${cidr}
+              RemoteIPTrustedProxy ${cidr}
               %{endfor~}
     YAML
   ]

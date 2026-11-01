@@ -346,7 +346,7 @@ inputs = {
               RemoteIPHeader X-Forwarded-For
               %{for cidr in local.apache_remoteip_internal_proxies~}
               RemoteIPInternalProxy ${cidr}
-              %{endfor~}
+              RemoteIPTrustedProxy ${cidr}
     YAML
   ]
 }

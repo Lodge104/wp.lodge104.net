@@ -7,6 +7,35 @@ locals {
   release_name  = "wordpress"
   namespace     = "wordpress"
 
+  # CloudFront's global "origin-facing" managed prefix list -- the same one
+  # _common/alb-security-group.hcl restricts ALB ingress to. Resolved here
+  # at plan/apply time (not hardcoded) so it can't go stale as AWS updates
+  # the list. Each env's wordpress/terragrunt.hcl feeds these CIDRs (plus
+  # its own VPC CIDR) to Apache's mod_remoteip (via apacheConfiguration),
+  # so Apache can correctly peel both proxy hops -- the ALB and the
+  # CloudFront edge -- off the X-Forwarded-For chain and resolve the real
+  # visitor IP instead of REMOTE_ADDR/X-Forwarded-For showing one of
+  # CloudFront's/the ALB's own IPs. Without this, WordPress and plugins
+  # that key security logic off the client IP (e.g. Defender Security's
+  # Session Protection, which locks a session to the client IP and kills
+  # it the moment the IP "changes") see a different CloudFront-owned IP on
+  # almost every request and misbehave accordingly.
+  cloudfront_origin_facing_prefix_list_id = run_cmd(
+    "--terragrunt-quiet",
+    "aws", "ec2", "describe-managed-prefix-lists",
+    "--filters", "Name=prefix-list-name,Values=com.amazonaws.global.cloudfront.origin-facing",
+    "--query", "PrefixLists[0].PrefixListId",
+    "--output", "text"
+  )
+
+  cloudfront_origin_facing_cidrs = jsondecode(run_cmd(
+    "--terragrunt-quiet",
+    "aws", "ec2", "get-managed-prefix-list-entries",
+    "--prefix-list-id", local.cloudfront_origin_facing_prefix_list_id,
+    "--query", "Entries[].Cidr",
+    "--output", "json"
+  ))
+
   # ---------------------------------------------------------------------------
   # Base Helm values applied to all environments.
   # Bundled MariaDB is disabled – Aurora MySQL Serverless (RDS) is used instead.

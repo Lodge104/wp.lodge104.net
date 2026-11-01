@@ -31,12 +31,12 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-  bucket_name         = "${local.project}-${local.env}-cdn"
-  comment             = "${local.project} ${local.env} uploads CDN"
-  aliases             = ["cdn.${local.env}.wp.${local.domain}"]
-  acm_certificate_arn = dependency.acm.outputs.acm_certificate_arn
-  # Non-production environment: allow destroy to force-delete all object
-  # versions instead of failing with BucketNotEmpty.
-  force_destroy = true
+    bucket_name         = "${local.project}-${local.env}-cdn"
+    comment             = "${local.project} ${local.env} uploads CDN"
+    aliases             = ["cdn.${local.env}.wp.${local.domain}"]
+    acm_certificate_arn = dependency.acm.outputs.acm_certificate_arn
+    # Non-production environment: allow destroy to force-delete all object
+    # versions instead of failing with BucketNotEmpty.
+    force_destroy = true
   }
 )

@@ -69,7 +69,7 @@ inputs = merge(
       }
     }
 
-    deletion_protection = false
+    deletion_protection       = false
     skip_final_snapshot       = true
     final_snapshot_identifier = "${local.project}-${local.env}-final-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   }

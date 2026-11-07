@@ -22,6 +22,7 @@ dependency "acm" {
     acm_certificate_arn = "arn:aws:acm:${local.region}:123456789012:certificate/00000000-0000-0000-0000-000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "static_assets_cache_policy" {
@@ -31,6 +32,7 @@ dependency "static_assets_cache_policy" {
     id = "mock-response-headers-policy-id"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "waf" {
@@ -39,6 +41,7 @@ dependency "waf" {
     web_acl_arn = "arn:aws:wafv2:us-east-1:123456789012:global/webacl/mock/00000000-0000-0000-0000-000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 terraform {
@@ -51,6 +54,9 @@ inputs = merge(
     comment = "${local.project} ${local.env} distribution"
     # Multisite "store" site shares this distribution/origin.
     aliases = ["${local.env}.wp.${local.domain}", "store.${local.env}.wp.${local.domain}"]
+
+    # Cost optimization, see issue #32.
+    price_class = "PriceClass_100"
 
     viewer_certificate = {
       acm_certificate_arn      = dependency.acm.outputs.acm_certificate_arn

@@ -33,6 +33,7 @@ dependency "eks" {
     cluster_name = "${local.project}-${local.env}"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "rds" {
@@ -45,6 +46,7 @@ dependency "rds" {
     ]
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "wordpress_s3_access" {
@@ -54,6 +56,7 @@ dependency "wordpress_s3_access" {
     policy_arn = "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "efs" {
@@ -63,6 +66,7 @@ dependency "efs" {
     storage_class_name = "efs-sc"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 # ElastiCache dependency removed -- WordPress now uses the in-cluster
@@ -76,6 +80,7 @@ dependency "acm" {
     acm_certificate_arn = "arn:aws:acm:${local.region}:123456789012:certificate/00000000-0000-0000-0000-000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "alb_security_group" {
@@ -85,6 +90,7 @@ dependency "alb_security_group" {
     id = "sg-00000000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 # No outputs needed from eks-addons; this dependency only enforces apply
@@ -95,6 +101,7 @@ dependency "eks_addons" {
 
   mock_outputs                            = {}
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "ses" {
@@ -107,6 +114,7 @@ dependency "ses" {
     secret_access_key           = "mock-secret-access-key"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 terraform {
@@ -215,8 +223,8 @@ inputs = {
             'provider' => 'aws',
             'use-server-roles' => true,
         ) ) );
-        define( 'FLUENTMAIL_AWS_ACCESS_KEY_ID', '${dependency.ses.outputs.access_key_id}' );
-        define( 'FLUENTMAIL_AWS_SECRET_ACCESS_KEY', '${dependency.ses.outputs.secret_access_key}' );
+        define( 'FLUENTMAIL_AWS_ACCESS_KEY_ID', '${try(coalesce(dependency.ses.outputs.access_key_id), "")}' );
+        define( 'FLUENTMAIL_AWS_SECRET_ACCESS_KEY', '${try(coalesce(dependency.ses.outputs.secret_access_key), "")}' );
 
       ingress:
         hostname: ${local.env}.wp.${local.domain}

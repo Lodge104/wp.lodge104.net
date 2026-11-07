@@ -23,6 +23,7 @@ dependency "vpc" {
     intra_subnets  = ["subnet-00000000000000004", "subnet-00000000000000005", "subnet-00000000000000006"]
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "wordpress_s3_access" {
@@ -32,6 +33,7 @@ dependency "wordpress_s3_access" {
     policy_arn = "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 terraform {
@@ -65,6 +67,11 @@ inputs = merge(
           try(group.iam_role_additional_policies, {}),
           { WordPressS3Access = dependency.wordpress_s3_access.outputs.policy_arn }
         )
+        # Cluster Autoscaler discovers its ASGs by these tags.
+        tags = merge(try(group.tags, {}), {
+          "k8s.io/cluster-autoscaler/enabled"                       = "true"
+          "k8s.io/cluster-autoscaler/${local.project}-${local.env}" = "owned"
+        })
       })
     }
   }

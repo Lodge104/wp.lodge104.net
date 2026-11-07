@@ -215,8 +215,8 @@ inputs = {
             'provider' => 'aws',
             'use-server-roles' => true,
         ) ) );
-        define( 'FLUENTMAIL_AWS_ACCESS_KEY_ID', '${dependency.ses.outputs.access_key_id}' );
-        define( 'FLUENTMAIL_AWS_SECRET_ACCESS_KEY', '${dependency.ses.outputs.secret_access_key}' );
+        define( 'FLUENTMAIL_AWS_ACCESS_KEY_ID', '${try(coalesce(dependency.ses.outputs.access_key_id), "")}' );
+        define( 'FLUENTMAIL_AWS_SECRET_ACCESS_KEY', '${try(coalesce(dependency.ses.outputs.secret_access_key), "")}' );
 
       ingress:
         hostname: ${local.env}.wp.${local.domain}

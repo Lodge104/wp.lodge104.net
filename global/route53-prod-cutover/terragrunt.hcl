@@ -41,7 +41,7 @@ inputs = merge(
     records = {
       root_ipv4 = {
         full_name = local.domain
-        type = "A"
+        type      = "A"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
@@ -49,7 +49,7 @@ inputs = merge(
       }
       root_ipv6 = {
         full_name = local.domain
-        type = "AAAA"
+        type      = "AAAA"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
@@ -57,7 +57,7 @@ inputs = merge(
       }
       store_ipv4 = {
         full_name = "store.${local.domain}"
-        type = "A"
+        type      = "A"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
@@ -65,7 +65,7 @@ inputs = merge(
       }
       store_ipv6 = {
         full_name = "store.${local.domain}"
-        type = "AAAA"
+        type      = "AAAA"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
@@ -73,7 +73,7 @@ inputs = merge(
       }
       cdn_ipv4 = {
         full_name = "cdn.${local.domain}"
-        type = "A"
+        type      = "A"
         alias = {
           name    = dependency.cdn.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cdn.outputs.cloudfront_distribution_hosted_zone_id
@@ -81,7 +81,7 @@ inputs = merge(
       }
       cdn_ipv6 = {
         full_name = "cdn.${local.domain}"
-        type = "AAAA"
+        type      = "AAAA"
         alias = {
           name    = dependency.cdn.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cdn.outputs.cloudfront_distribution_hosted_zone_id
@@ -97,7 +97,7 @@ inputs = merge(
       # "www.lodge104.net.prod.wp.lodge104.net" instead of "www.lodge104.net".
       www_ipv4 = {
         full_name = "www.${local.domain}"
-        type = "A"
+        type      = "A"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id
@@ -105,7 +105,7 @@ inputs = merge(
       }
       www_ipv6 = {
         full_name = "www.${local.domain}"
-        type = "AAAA"
+        type      = "AAAA"
         alias = {
           name    = dependency.cloudfront.outputs.cloudfront_distribution_domain_name
           zone_id = dependency.cloudfront.outputs.cloudfront_distribution_hosted_zone_id

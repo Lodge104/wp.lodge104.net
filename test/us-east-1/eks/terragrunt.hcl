@@ -23,6 +23,7 @@ dependency "vpc" {
     intra_subnets  = ["subnet-00000000000000004", "subnet-00000000000000005", "subnet-00000000000000006"]
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "wordpress_s3_access" {
@@ -32,6 +33,7 @@ dependency "wordpress_s3_access" {
     policy_arn = "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 terraform {
@@ -58,13 +60,18 @@ inputs = merge(
         # module -- ami_type must be set explicitly per group or it
         # silently falls back to the module's own default
         # (AL2023_x86_64_STANDARD), which breaks Graviton instance types.
-        ami_type          = local.common.locals.eks_managed_node_group_defaults.ami_type
+        ami_type         = local.common.locals.eks_managed_node_group_defaults.ami_type
         metadata_options = local.common.locals.eks_managed_node_group_defaults.metadata_options
         iam_role_additional_policies = merge(
           local.common.locals.eks_managed_node_group_defaults.iam_role_additional_policies,
           try(group.iam_role_additional_policies, {}),
           { WordPressS3Access = dependency.wordpress_s3_access.outputs.policy_arn }
         )
+        # Cluster Autoscaler discovers its ASGs by these tags.
+        tags = merge(try(group.tags, {}), {
+          "k8s.io/cluster-autoscaler/enabled"                       = "true"
+          "k8s.io/cluster-autoscaler/${local.project}-${local.env}" = "owned"
+        })
       })
     }
   }

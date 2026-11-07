@@ -48,8 +48,11 @@ locals {
       most_recent    = true
       before_compute = true
     }
+    # Pinned: an addon update restarts the efs-csi-node pods, which kills the
+    # efs-proxy behind every live NFS mount and hangs the WordPress pods
+    # (503). After bumping this, restart the wordpress deployment/nodes.
     aws-efs-csi-driver = {
-      most_recent = true
+      addon_version = "v3.5.4-eksbuild.1"
     }
     # Required for the aws-efs-csi-driver addon's IAM role (granted via EKS
     # Pod Identity association, see _modules/efs) to actually be injected

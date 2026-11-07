@@ -181,6 +181,58 @@ resource "aws_wafv2_web_acl" "this" {
           }
         }
 
+        # NOT (path starts with "/wp-json/" AND wordpress_logged_in_ cookie),
+        # expanded to NOT(path) OR NOT(cookie). Lets the block/page editors
+        # save content over REST (e.g. POST /wp-json/wp/v2/pages/<id>/autosaves,
+        # whose HTML bodies trip the XSS rule) while anonymous REST bodies
+        # stay blocked. The cookie is only a presence check, so it can be
+        # spoofed; WordPress still enforces real auth.
+        statement {
+          or_statement {
+            statement {
+              not_statement {
+                statement {
+                  byte_match_statement {
+                    search_string         = "/wp-json/"
+                    positional_constraint = "STARTS_WITH"
+
+                    field_to_match {
+                      uri_path {}
+                    }
+
+                    text_transformation {
+                      priority = 0
+                      type     = "NONE"
+                    }
+                  }
+                }
+              }
+            }
+
+            statement {
+              not_statement {
+                statement {
+                  byte_match_statement {
+                    search_string         = "wordpress_logged_in_"
+                    positional_constraint = "CONTAINS"
+
+                    field_to_match {
+                      single_header {
+                        name = "cookie"
+                      }
+                    }
+
+                    text_transformation {
+                      priority = 0
+                      type     = "NONE"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
         statement {
           or_statement {
             statement {

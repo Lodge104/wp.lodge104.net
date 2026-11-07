@@ -6,9 +6,9 @@ locals {
 
   eks_node_groups = {
     general = {
-      min_size       = 2
-      max_size       = 3
-      desired_size   = 2
+      min_size     = 2
+      max_size     = 3
+      desired_size = 2
       # Graviton -- matches the arm64 AMI default in _common/eks.hcl. See
       # issue #32.
       instance_types = ["t4g.medium"]
@@ -31,11 +31,11 @@ locals {
   # issue #32.
 
   wordpress = {
-    blog_name                 = "Lodge104 (Dev)"
-    replica_count             = 2
-    resources_preset          = "small"
-    persistence_size          = "5Gi"
-    pdb_create                = false
-    pod_anti_affinity_preset  = "hard"
+    blog_name                = "Lodge104 (Dev)"
+    replica_count            = 2
+    resources_preset         = "small"
+    persistence_size         = "5Gi"
+    pdb_create               = false
+    pod_anti_affinity_preset = "hard"
   }
 }

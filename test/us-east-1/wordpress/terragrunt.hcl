@@ -237,7 +237,7 @@ inputs = {
       autoscaling:
         enabled: true
         minReplicas: ${local.wp_config.replica_count}
-        maxReplicas: 10
+        maxReplicas: 2
         targetCPU: 60
         targetMemory: 75
 

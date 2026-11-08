@@ -205,8 +205,14 @@ inputs = {
       # _common/wordpress.hcl (memcached.enabled: true) -- no external
       # ElastiCache endpoint needed. See issue #32.
 
+      # NOTE: do not use '&&' (or any '&') in this block. The Bitnami image
+      # appends it into wp-config.php with sed, where '&' in the replacement
+      # expands to the matched text and corrupts the file (PHP parse error,
+      # wp core multisite-install exits 255, pod CrashLoopBackOffs on any
+      # fresh install). Prod only escapes it because its wp-config.php is
+      # already persisted (wordpressSkipInstall: true).
       wordpressExtraConfigContent: |
-        if (isset($_SERVER['HTTP_HOST']) && strcasecmp($_SERVER['HTTP_HOST'], 'www.${local.domain}') === 0) {
+        if (strcasecmp($_SERVER['HTTP_HOST'] ?? '', 'www.${local.domain}') === 0) {
           header('Location: https://${local.domain}' . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
           exit;
         }

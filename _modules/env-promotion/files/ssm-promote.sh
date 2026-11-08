@@ -288,7 +288,16 @@ if [ ! -d "$SRC_EFS" ] || [ ! -d "$DST_EFS" ]; then
 fi
 
 log "Syncing EFS ${SRC_EFS} -> ${DST_EFS}..."
-rsync -a --delete --exclude=.maintenance "${SRC_EFS}/" "${DST_EFS}/"
+# wp-config.php is environment-specific (DB_HOST, DOMAIN_CURRENT_SITE, the
+# target's own multisite/extra-config settings) and is persisted on the same
+# EFS volume as the rest of the WordPress data. Copying the source's file
+# over would point the target at the SOURCE database and domain -- the
+# target's pods can't even reach another environment's Aurora cluster, so
+# they'd crash-loop. Excluding it also protects the target's copy from
+# --delete (rsync does not delete excluded files without --delete-excluded).
+# The pattern is unanchored on purpose: it matches wp-config.php at any
+# depth, which covers the "wordpress/" subdirectory the pods mount.
+rsync -a --delete --exclude=.maintenance --exclude=wp-config.php "${SRC_EFS}/" "${DST_EFS}/"
 log "EFS copy complete."
 
 # ---------------------------------------------------------------------------

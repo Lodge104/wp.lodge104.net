@@ -188,7 +188,7 @@ inputs = {
     local.common.locals.base_values,
     <<-YAML
       wordpressBlogName: "${local.wp_config.blog_name}"
-      wordpressHost: ${local.domain}
+      wordpressHost: ${local.env}.wp.${local.domain}
       wordpressSkipInstall: false
 
       # Multisite (subdomain install): the network's primary domain stays
@@ -197,7 +197,7 @@ inputs = {
       # domain the proxy/ingress routes to this release -- they don't need
       # to be literal subdomains of DOMAIN_CURRENT_SITE.
       multisite:
-        host: ${local.domain}
+        host: ${local.env}.wp.${local.domain}
 
       replicaCount: ${local.wp_config.replica_count}
       resourcesPreset: ${local.wp_config.resources_preset}

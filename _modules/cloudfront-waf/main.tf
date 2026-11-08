@@ -15,6 +15,114 @@ resource "aws_wafv2_web_acl" "this" {
     allow {}
   }
 
+  # Login brute-force protection. Replaces the lockout feature of the WP
+  # Defender plugin (deactivated on prod 2026-11-08 because its Session
+  # Protection kept logging users out). Counts login-style POSTs per viewer
+  # IP over a sliding window and blocks the IP with a 429 once it exceeds
+  # the limit; the block lifts automatically when the rate drops back.
+  # Covered endpoints: wp-login.php, xmlrpc.php (credential-guessing via
+  # system.multicall) and the WooCommerce /my-account login form used by
+  # the store sites. Runs before the managed rule groups (priority 5) so
+  # abusive IPs are cut off cheaply.
+  rule {
+    name     = "LoginRateLimit"
+    priority = 5
+
+    action {
+      block {
+        custom_response {
+          response_code = 429
+        }
+      }
+    }
+
+    statement {
+      rate_based_statement {
+        limit                 = var.login_rate_limit
+        evaluation_window_sec = var.login_rate_window_seconds
+        aggregate_key_type    = "IP"
+
+        scope_down_statement {
+          and_statement {
+            statement {
+              byte_match_statement {
+                search_string         = "POST"
+                positional_constraint = "EXACTLY"
+
+                field_to_match {
+                  method {}
+                }
+
+                text_transformation {
+                  priority = 0
+                  type     = "NONE"
+                }
+              }
+            }
+
+            statement {
+              or_statement {
+                statement {
+                  byte_match_statement {
+                    search_string         = "/wp-login.php"
+                    positional_constraint = "EXACTLY"
+
+                    field_to_match {
+                      uri_path {}
+                    }
+
+                    text_transformation {
+                      priority = 0
+                      type     = "NONE"
+                    }
+                  }
+                }
+
+                statement {
+                  byte_match_statement {
+                    search_string         = "/xmlrpc.php"
+                    positional_constraint = "EXACTLY"
+
+                    field_to_match {
+                      uri_path {}
+                    }
+
+                    text_transformation {
+                      priority = 0
+                      type     = "NONE"
+                    }
+                  }
+                }
+
+                statement {
+                  byte_match_statement {
+                    search_string         = "/my-account"
+                    positional_constraint = "STARTS_WITH"
+
+                    field_to_match {
+                      uri_path {}
+                    }
+
+                    text_transformation {
+                      priority = 0
+                      type     = "NONE"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${var.name}-login-rate-limit"
+      sampled_requests_enabled   = true
+    }
+  }
+
   rule {
     name     = "AWSManagedRulesCommonRuleSet"
     priority = 10

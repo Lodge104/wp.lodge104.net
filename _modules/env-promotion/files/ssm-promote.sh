@@ -75,6 +75,41 @@ DST_HOST=$(env_hostname "$DST_ENV")
 
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
 
+# WP-CLI on a multisite install resolves which network site to load from the
+# database using the target pod's own wp-config.php (DOMAIN_CURRENT_SITE),
+# which is deliberately NOT overwritten by the EFS sync. Between the database
+# restore and the domain rewrite, the database holds the SOURCE hostname
+# while wp-config.php still says the TARGET's, so a bare `wp ...` fails with
+# "Site '<target host>/' not found". Every wp call therefore passes an
+# explicit --url that matches whichever hostname the target database holds at
+# that point (tracked in WP_URL; also re-detected up front so the script can
+# be re-run after a promotion that failed midway).
+WP_URL=""
+
+wp_in_pod() {
+  local pod="$1"
+  shift
+  if [ -n "$WP_URL" ]; then
+    kubectl exec -n "$NAMESPACE" "$pod" -c wordpress -- wp "$@" --url="$WP_URL"
+  else
+    kubectl exec -n "$NAMESPACE" "$pod" -c wordpress -- wp "$@"
+  fi
+}
+
+detect_wp_url() {
+  local pod="$1" candidate
+  for candidate in "$DST_HOST" "$SRC_HOST"; do
+    if kubectl exec -n "$NAMESPACE" "$pod" -c wordpress -- \
+      wp option get home --url="$candidate" --skip-plugins --skip-themes >/dev/null 2>&1; then
+      WP_URL="$candidate"
+      log "Target database currently uses hostname '${WP_URL}'."
+      return 0
+    fi
+  done
+  echo "wp-cli could not load a site from the ${DST_ENV} database using either '${DST_HOST}' or '${SRC_HOST}'." >&2
+  return 1
+}
+
 TARGET_DEPLOYMENT=""
 ORIGINAL_REPLICAS=""
 TARGET_QUIESCED=0
@@ -102,7 +137,7 @@ restore_target() {
       -l "app.kubernetes.io/instance=${RELEASE_NAME}" \
       -o jsonpath='{.items[0].metadata.name}')
     if [ -n "$pod_name" ]; then
-      if ! kubectl exec -n "$NAMESPACE" "$pod_name" -c wordpress -- wp maintenance-mode deactivate; then
+      if ! wp_in_pod "$pod_name" maintenance-mode deactivate; then
         status=1
       fi
     else
@@ -240,12 +275,14 @@ if [ -z "$POD_NAME" ]; then
   exit 1
 fi
 
+detect_wp_url "$POD_NAME"
+
 log "Enabling WordPress maintenance mode and draining ${TARGET_DEPLOYMENT}..."
 MAINTENANCE_ACTIVE=1
-kubectl exec -n "$NAMESPACE" "$POD_NAME" -c wordpress -- wp maintenance-mode activate
+wp_in_pod "$POD_NAME" maintenance-mode activate
 # Keep WordPress from expiring the maintenance file during a long promotion.
 # shellcheck disable=SC2016
-kubectl exec -n "$NAMESPACE" "$POD_NAME" -c wordpress -- wp eval \
+wp_in_pod "$POD_NAME" eval \
   'file_put_contents(ABSPATH . ".maintenance", "<?php \$upgrading = " . (time() + 604800) . ";");'
 
 TARGET_QUIESCED=1
@@ -255,6 +292,8 @@ kubectl rollout status "deployment/${TARGET_DEPLOYMENT}" -n "$NAMESPACE" --timeo
 log "Restoring into ${DST_CLUSTER} (${DST_ENDPOINT})..."
 MYSQL_PWD="$DST_PASSWORD" mysql -h "$DST_ENDPOINT" -u "$DB_USER" "$DB_NAME" < "$DUMP_FILE"
 
+# The target database now holds the SOURCE hostname until step 4 rewrites it.
+WP_URL="$SRC_HOST"
 log "Database copy complete."
 
 # ---------------------------------------------------------------------------
@@ -337,14 +376,18 @@ fi
 
 log "Running wp search-replace '${SRC_HOST}' -> '${DST_HOST}' in pod ${POD_NAME}..."
 KUBECONFIG="$DST_KUBECONFIG" kubectl exec -n "$NAMESPACE" "$POD_NAME" -c wordpress -- \
-  wp search-replace "$SRC_HOST" "$DST_HOST" --all-tables --network --report-changed-only
+  wp search-replace "$SRC_HOST" "$DST_HOST" --all-tables --network --report-changed-only \
+  --url="$SRC_HOST"
+# The database now holds the TARGET hostname.
+WP_URL="$DST_HOST"
 
 # The origin.<host> ALB rule (see dev/us-east-1/wordpress/terragrunt.hcl)
 # is also baked into some rows (e.g. canonical redirects cached by plugins);
 # rewrite it too so internal origin-facing requests still resolve correctly.
 log "Running wp search-replace 'origin.${SRC_HOST}' -> 'origin.${DST_HOST}' in pod ${POD_NAME}..."
 KUBECONFIG="$DST_KUBECONFIG" kubectl exec -n "$NAMESPACE" "$POD_NAME" -c wordpress -- \
-  wp search-replace "origin.$SRC_HOST" "origin.$DST_HOST" --all-tables --network --report-changed-only
+  wp search-replace "origin.$SRC_HOST" "origin.$DST_HOST" --all-tables --network --report-changed-only \
+  --url="$DST_HOST"
 
 log "Domain rewrite complete."
 

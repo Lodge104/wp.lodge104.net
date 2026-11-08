@@ -147,6 +147,15 @@ resource "aws_eks_pod_identity_association" "efs_csi" {
 # without credentials when the association is finally created. A rollout
 # restart forces the pods to re-inject the Pod Identity credentials so they
 # can provision access points for PVCs backed by the efs-sc StorageClass.
+#
+# A single restart is not reliable: a newly created association can take a
+# few seconds to propagate to the EKS Pod Identity webhook, so pods created
+# right after it may still start WITHOUT the injected credentials
+# (AWS_CONTAINER_CREDENTIALS_FULL_URI / AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE)
+# even though the rollout reports success. That left PVCs stuck Pending with
+# "Unauthenticated ... Access Denied" on a rebuilt test cluster (2026-11-08).
+# So after each restart the script verifies every controller pod actually has
+# the injected env var, and restarts again (with a pause) until they do.
 # ---------------------------------------------------------------------------
 resource "terraform_data" "efs_csi_controller_restart" {
   triggers_replace = [
@@ -162,17 +171,49 @@ resource "terraform_data" "efs_csi_controller_restart" {
       trap 'rm -f "$KUBECONFIG"' EXIT
       aws eks update-kubeconfig --name "${var.eks_cluster_name}" --region "${var.region}" >/dev/null
 
-      if kubectl get deployment efs-csi-controller -n kube-system >/dev/null 2>&1; then
-        echo "Restarting efs-csi-controller to pick up Pod Identity credentials..."
+      if ! kubectl get deployment efs-csi-controller -n kube-system >/dev/null 2>&1; then
+        echo "efs-csi-controller deployment not found; skipping restart."
+        exit 0
+      fi
+
+      # Returns 0 only if there is at least one controller pod and every one
+      # of them has the Pod Identity credential env var injected.
+      controller_has_credentials() {
+        pods=$(kubectl get pods -n kube-system -l app=efs-csi-controller -o name)
+        [ -n "$pods" ] || return 1
+        for pod in $pods; do
+          kubectl get "$pod" -n kube-system \
+            -o jsonpath='{.spec.containers[*].env[*].name}' \
+            | tr ' ' '\n' | grep -qx AWS_CONTAINER_CREDENTIALS_FULL_URI || return 1
+        done
+      }
+
+      # Give the new association a moment to propagate before the first restart.
+      sleep 15
+
+      max_attempts=5
+      attempt=1
+      while [ "$attempt" -le "$max_attempts" ]; do
+        echo "Restarting efs-csi-controller to pick up Pod Identity credentials (attempt $attempt/$max_attempts)..."
         kubectl rollout restart deployment efs-csi-controller -n kube-system
         # Block until the new pods are actually Ready, otherwise downstream
         # modules (e.g. wordpress) can start creating PVCs while the
         # controller is still mid-rollout and has no credentials yet,
         # causing "unbound immediate PersistentVolumeClaims" errors.
         kubectl rollout status deployment efs-csi-controller -n kube-system --timeout=180s
-      else
-        echo "efs-csi-controller deployment not found; skipping restart."
-      fi
+
+        if controller_has_credentials; then
+          echo "efs-csi-controller pods have Pod Identity credentials."
+          exit 0
+        fi
+
+        echo "efs-csi-controller pods are missing Pod Identity credentials; association may not have propagated yet. Retrying in 20s..."
+        attempt=$((attempt + 1))
+        sleep 20
+      done
+
+      echo "ERROR: efs-csi-controller pods still have no Pod Identity credentials after $max_attempts attempts." >&2
+      exit 1
     EOT
   }
 

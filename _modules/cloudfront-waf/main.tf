@@ -289,20 +289,98 @@ resource "aws_wafv2_web_acl" "this" {
           }
         }
 
-        # NOT (path starts with "/wp-json/" AND wordpress_logged_in_ cookie),
-        # expanded to NOT(path) OR NOT(cookie). Lets the block/page editors
-        # save content over REST (e.g. POST /wp-json/wp/v2/pages/<id>/autosaves,
-        # whose HTML bodies trip the XSS rule) while anonymous REST bodies
-        # stay blocked. The cookie is only a presence check, so it can be
-        # spoofed; WordPress still enforces real auth.
+        statement {
+          or_statement {
+            statement {
+              label_match_statement {
+                scope = "LABEL"
+                key   = "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body"
+              }
+            }
+
+            statement {
+              label_match_statement {
+                scope = "LABEL"
+                key   = "awswaf:managed:aws:core-rule-set:GenericLFI_Body"
+              }
+            }
+          }
+        }
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${var.name}-common-body-public"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  rule {
+    name     = "CommonRuleSet-xss-block-public"
+    priority = 12
+
+    action {
+      block {}
+    }
+
+    statement {
+      and_statement {
+        statement {
+          label_match_statement {
+            scope = "LABEL"
+            key   = "awswaf:managed:aws:core-rule-set:CrossSiteScripting_Body"
+          }
+        }
+
+        statement {
+          not_statement {
+            statement {
+              byte_match_statement {
+                search_string         = "/wp-admin"
+                positional_constraint = "STARTS_WITH"
+
+                field_to_match {
+                  uri_path {}
+                }
+
+                text_transformation {
+                  priority = 0
+                  type     = "NONE"
+                }
+              }
+            }
+          }
+        }
+
+        statement {
+          not_statement {
+            statement {
+              byte_match_statement {
+                search_string         = "/xmlrpc.php"
+                positional_constraint = "EXACTLY"
+
+                field_to_match {
+                  uri_path {}
+                }
+
+                text_transformation {
+                  priority = 0
+                  type     = "NONE"
+                }
+              }
+            }
+          }
+        }
+
         statement {
           or_statement {
             statement {
               not_statement {
                 statement {
                   byte_match_statement {
-                    search_string         = "/wp-json/"
-                    positional_constraint = "STARTS_WITH"
+                    search_string         = "/"
+                    positional_constraint = "EXACTLY"
 
                     field_to_match {
                       uri_path {}
@@ -321,12 +399,12 @@ resource "aws_wafv2_web_acl" "this" {
               not_statement {
                 statement {
                   byte_match_statement {
-                    search_string         = "wordpress_logged_in_"
-                    positional_constraint = "CONTAINS"
+                    search_string         = "comms"
+                    positional_constraint = "EXACTLY"
 
                     field_to_match {
-                      single_header {
-                        name = "cookie"
+                      single_query_argument {
+                        name = "jetpack"
                       }
                     }
 
@@ -341,36 +419,53 @@ resource "aws_wafv2_web_acl" "this" {
           }
         }
 
+        # WordPress enforces authentication for these write routes. The WAF
+        # exception is only for XSS false positives and does not trust cookies.
         statement {
-          or_statement {
+          not_statement {
             statement {
-              label_match_statement {
-                scope = "LABEL"
-                key   = "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body"
-              }
-            }
+              and_statement {
+                statement {
+                  byte_match_statement {
+                    search_string         = "POST"
+                    positional_constraint = "EXACTLY"
 
-            statement {
-              label_match_statement {
-                scope = "LABEL"
-                key   = "awswaf:managed:aws:core-rule-set:CrossSiteScripting_Body"
-              }
-            }
+                    field_to_match {
+                      method {}
+                    }
 
-            statement {
-              label_match_statement {
-                scope = "LABEL"
-                key   = "awswaf:managed:aws:core-rule-set:GenericLFI_Body"
+                    text_transformation {
+                      priority = 0
+                      type     = "NONE"
+                    }
+                  }
+                }
+
+                statement {
+                  regex_match_statement {
+                    regex_string = "^/wp-json/wp/v2/(posts|pages)(/|$)"
+
+                    field_to_match {
+                      uri_path {}
+                    }
+
+                    text_transformation {
+                      priority = 0
+                      type     = "NONE"
+                    }
+                  }
+                }
               }
             }
           }
         }
+
       }
     }
 
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "${var.name}-common-body-public"
+      metric_name                = "${var.name}-common-xss-body-public"
       sampled_requests_enabled   = true
     }
   }

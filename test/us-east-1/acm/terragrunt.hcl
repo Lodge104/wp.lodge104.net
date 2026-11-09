@@ -3,8 +3,8 @@ locals {
   env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env     = local.env_vars.locals.env
-  domain  = local.project_vars.locals.domain
+  env    = local.env_vars.locals.env
+  domain = local.project_vars.locals.domain
 }
 
 include "root" {
@@ -19,6 +19,7 @@ dependency "zone" {
     id = "Z2222222222222"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 terraform {

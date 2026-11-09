@@ -22,6 +22,7 @@ dependency "acm" {
     acm_certificate_arn = "arn:aws:acm:${local.region}:123456789012:certificate/00000000-0000-0000-0000-000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 terraform {
@@ -31,13 +32,14 @@ terraform {
 inputs = merge(
   local.common.locals,
   {
-  bucket_name         = "${local.project}-${local.env}-cdn"
-  comment             = "${local.project} ${local.env} uploads CDN"
-  aliases             = ["cdn.${local.env}.wp.${local.domain}"]
-  acm_certificate_arn = dependency.acm.outputs.acm_certificate_arn
-  origin_access_control_name = "cdn-${local.env}"
-  # Non-production environment: allow destroy to force-delete all object
-  # versions instead of failing with BucketNotEmpty.
-  force_destroy = true
+    bucket_name                = "${local.project}-${local.env}-cdn"
+    comment                    = "${local.project} ${local.env} uploads CDN"
+    aliases                    = ["cdn.${local.env}.wp.${local.domain}"]
+    acm_certificate_arn        = dependency.acm.outputs.acm_certificate_arn
+    price_class                = "PriceClass_100"
+    origin_access_control_name = "cdn-${local.env}"
+    # Non-production environment: allow destroy to force-delete all object
+    # versions instead of failing with BucketNotEmpty.
+    force_destroy = true
   }
 )

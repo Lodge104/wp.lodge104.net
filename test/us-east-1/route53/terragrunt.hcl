@@ -4,10 +4,10 @@ locals {
   region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
-  env            = local.env_vars.locals.env
-  region         = local.region_vars.locals.aws_region
-  domain         = local.project_vars.locals.domain
-  alb_zone_id    = local.region_vars.locals.alb_hosted_zone_id
+  env         = local.env_vars.locals.env
+  region      = local.region_vars.locals.aws_region
+  domain      = local.project_vars.locals.domain
+  alb_zone_id = local.region_vars.locals.alb_hosted_zone_id
 }
 
 include "root" {
@@ -23,6 +23,7 @@ dependency "cloudfront" {
     cloudfront_distribution_hosted_zone_id = "Z2FDTNDATAQYW2"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "cdn" {
@@ -33,6 +34,7 @@ dependency "cdn" {
     cloudfront_distribution_hosted_zone_id = "Z2FDTNDATAQYW2"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "wordpress" {

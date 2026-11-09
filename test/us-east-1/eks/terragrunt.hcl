@@ -91,6 +91,11 @@ inputs = merge(
             )
           }
         )
+        # Cluster Autoscaler discovers its ASGs by these tags.
+        tags = merge(try(group.tags, {}), {
+          "k8s.io/cluster-autoscaler/enabled"                       = "true"
+          "k8s.io/cluster-autoscaler/${local.project}-${local.env}" = "owned"
+        })
       })
     }
   }

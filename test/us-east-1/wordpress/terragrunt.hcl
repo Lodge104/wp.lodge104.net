@@ -33,6 +33,7 @@ dependency "eks" {
     cluster_name = "${local.project}-${local.env}"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "rds" {
@@ -45,6 +46,7 @@ dependency "rds" {
     ]
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "wordpress_s3_access" {
@@ -54,6 +56,7 @@ dependency "wordpress_s3_access" {
     policy_arn = "arn:aws:iam::123456789012:policy/${local.project}-${local.env}-wordpress-s3-access"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "efs" {
@@ -63,6 +66,7 @@ dependency "efs" {
     storage_class_name = "efs-sc"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 # ElastiCache dependency removed -- WordPress now uses the in-cluster
@@ -76,6 +80,7 @@ dependency "acm" {
     acm_certificate_arn = "arn:aws:acm:${local.region}:123456789012:certificate/00000000-0000-0000-0000-000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "alb_security_group" {
@@ -85,6 +90,7 @@ dependency "alb_security_group" {
     id = "sg-00000000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 # No outputs needed from eks-addons; this dependency only enforces apply
@@ -95,6 +101,7 @@ dependency "eks_addons" {
 
   mock_outputs                            = {}
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "ses" {
@@ -107,6 +114,7 @@ dependency "ses" {
     secret_access_key           = "mock-secret-access-key"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 terraform {
@@ -156,6 +164,7 @@ inputs = {
   chart_version = local.common.locals.chart_version
   namespace     = local.common.locals.namespace
   atomic        = true
+  timeout       = 900
 
   rds_master_user_secret_arn = dependency.rds.outputs.cluster_master_user_secret[0].secret_arn
   rds_secret_name            = "${local.project}-${local.env}-rds-credentials"
@@ -168,8 +177,9 @@ inputs = {
   pod_identity_service_account   = local.common.locals.release_name
   wordpress_s3_access_policy_arn = dependency.wordpress_s3_access.outputs.policy_arn
 
-  create_wordpress_admin_credentials = true
-  wordpress_admin_secret_name        = "${local.project}-${local.env}-wordpress-admin-credentials"
+  create_wordpress_admin_credentials             = true
+  wordpress_admin_secret_name                    = "${local.project}-${local.env}-wordpress-admin-credentials"
+  wordpress_admin_secret_recovery_window_in_days = 7
 
   expose_ingress_hostname = true
   ingress_name            = local.common.locals.release_name
@@ -179,6 +189,7 @@ inputs = {
     <<-YAML
       wordpressBlogName: "${local.wp_config.blog_name}"
       wordpressHost: ${local.env}.wp.${local.domain}
+      wordpressSkipInstall: false
 
       # Multisite (subdomain install): the network's primary domain stays
       # ${local.env}.wp.${local.domain}. Additional network sites (e.g. the
@@ -202,14 +213,24 @@ inputs = {
       # _common/wordpress.hcl (memcached.enabled: true) -- no external
       # ElastiCache endpoint needed. See issue #32.
 
+      # NOTE: do not use '&&' (or any '&') in this block. The Bitnami image
+      # appends it into wp-config.php with sed, where '&' in the replacement
+      # expands to the matched text and corrupts the file (PHP parse error,
+      # wp core multisite-install exits 255, pod CrashLoopBackOffs on any
+      # fresh install). Prod only escapes it because its wp-config.php is
+      # already persisted (wordpressSkipInstall: true).
       wordpressExtraConfigContent: |
+        if (strcasecmp($_SERVER['HTTP_HOST'] ?? '', 'www.${local.domain}') === 0) {
+          header('Location: https://${local.domain}' . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+          exit;
+        }
         define( 'WP_CACHE', true );
         define( 'AS3CF_SETTINGS', serialize( array(
             'provider' => 'aws',
             'use-server-roles' => true,
         ) ) );
-        define( 'FLUENTMAIL_AWS_ACCESS_KEY_ID', '${dependency.ses.outputs.access_key_id}' );
-        define( 'FLUENTMAIL_AWS_SECRET_ACCESS_KEY', '${dependency.ses.outputs.secret_access_key}' );
+        define( 'FLUENTMAIL_AWS_ACCESS_KEY_ID', '${try(coalesce(dependency.ses.outputs.access_key_id), "")}' );
+        define( 'FLUENTMAIL_AWS_SECRET_ACCESS_KEY', '${try(coalesce(dependency.ses.outputs.secret_access_key), "")}' );
 
       ingress:
         hostname: ${local.env}.wp.${local.domain}
@@ -220,11 +241,26 @@ inputs = {
       podAntiAffinityPreset: ${local.wp_config.pod_anti_affinity_preset}
 
       autoscaling:
-        enabled: false
+        enabled: true
+        minReplicas: ${local.wp_config.replica_count}
+        maxReplicas: 2
+        targetCPU: 60
+        targetMemory: 75
 
       pdb:
         create: ${local.wp_config.pdb_create}
         minAvailable: ${local.wp_config.pdb_min_available}
+
+      # Bumped after the 2026-10-12 prod outage: the wordpress container was
+      # repeatedly OOMKilled at the old 1Gi limit (12-18 restarts/pod over a
+      # week), which left pods flapping between NotReady and crash-looping.
+      resources:
+        requests:
+          cpu: 250m
+          memory: 768Mi
+        limits:
+          cpu: 1500m
+          memory: 2Gi
     YAML
     ,
     <<-YAML
@@ -249,6 +285,17 @@ inputs = {
           - name: store.${local.env}.wp.${local.domain}
             path: /
             pathType: Prefix
+          # Root-domain aliases are accepted by prod CloudFront and route to
+          # this release; wp-config redirects www to the canonical apex.
+          - name: ${local.domain}
+            path: /
+            pathType: Prefix
+          - name: www.${local.domain}
+            path: /
+            pathType: Prefix
+          - name: store.${local.domain}
+            path: /
+            pathType: Prefix
     YAML
     ,
     <<-YAML
@@ -261,7 +308,7 @@ inputs = {
       # replacing /opt/bitnami/apache/conf/deflate.conf (via the ConfigMap
       # in extraDeploy below) with its original content plus our
       # directives appended. Two things that look more obvious were tried
-      # and failed on 2026-10-29 (in prod), so don't redo them:
+      # and failed on 2026-10-29, so don't redo them:
       #   1. The chart's top-level `apacheConfiguration` value REPLACES
       #      the entire generated httpd.conf wholesale, including the MPM
       #      module load line -- crashed every pod with "AH00534: httpd:
@@ -285,14 +332,6 @@ inputs = {
       # established apache-conf-dir mount (same level as httpd.conf
       # itself) -- no new directory needs to be created, so there's
       # nothing for Kubernetes to get the ownership of wrong.
-      #
-      # NOTE: extraVolumes/extraVolumeMounts/extraDeploy are each a single
-      # logical list as far as Helm's values merging is concerned -- every
-      # entry for a given key must live in ONE block. Adding a second,
-      # separate `extraVolumes:` (or extraVolumeMounts/extraDeploy) key in
-      # a later values block here would REPLACE this one instead of
-      # merging with it (Helm's multi-values-file merge does not
-      # concatenate lists), silently dropping the RDS secrets volume.
       extraVolumes:
         - name: rds-secrets-store
           csi:
@@ -320,9 +359,11 @@ inputs = {
       # Security's Session Protection feature, which kills a session the
       # moment the client IP appears to "change" between requests -- it
       # was really just a different CloudFront/ALB IP every time, not the
-      # visitor). mod_remoteip resolves the real client IP from
-      # X-Forwarded-For and rewrites REMOTE_ADDR to match, once told which
-      # hops to trust.
+      # visitor -- confirmed live on 2026-10-29: every logged IP in
+      # Defender's lockout/audit logs fell inside AWS's published
+      # CLOUDFRONT_ORIGIN_FACING ranges). mod_remoteip resolves the real
+      # client IP from X-Forwarded-For and rewrites REMOTE_ADDR to match,
+      # once told which hops to trust.
       extraDeploy:
         - |
           apiVersion: v1
@@ -345,8 +386,52 @@ inputs = {
               LoadModule remoteip_module modules/mod_remoteip.so
               RemoteIPHeader X-Forwarded-For
               %{for cidr in local.apache_remoteip_internal_proxies~}
-              RemoteIPInternalProxy ${cidr}
+              RemoteIPTrustedProxy ${cidr}
               %{endfor~}
+    YAML
+    ,
+    <<-YAML
+      # /opt/bitnami/wordpress lives on the container's local (ephemeral) disk
+      # and is recreated fresh from the image on every pod start -- only
+      # wp-config.php and wp-content are symlinked back to the EFS-backed
+      # /bitnami/wordpress PVC by the Bitnami entrypoint. Anything else that
+      # needs to persist and be served from the webroot (e.g. domain
+      # verification files like Apple Pay's
+      # .well-known/apple-developer-merchantid-domain-association, added
+      # manually under /bitnami/wordpress/.well-known) must be symlinked back
+      # the same way, or it silently disappears on every pod restart/recycle.
+      # Prod-only: dev/test have no equivalent domain-verification files, and
+      # this hook raced the entrypoint's first-boot install on fresh/empty
+      # PVCs there -- see IMPORTANT note below.
+      #
+      # IMPORTANT: postStart runs concurrently with the main entrypoint, not
+      # after it. On a brand-new PVC (empty EFS access point), `mkdir -p
+      # /bitnami/wordpress/.well-known` here can race ahead of the entrypoint's
+      # own first-boot install and create a non-empty /bitnami/wordpress
+      # directory before wp-config.php exists. The entrypoint's
+      # is_app_initialized() check only tests whether that directory is
+      # non-empty -- it then wrongly concludes a WordPress install is already
+      # persisted there, skips `wp core install`, and crashes with "wp-config.php
+      # not found". So this hook must wait for wp-config.php to actually exist
+      # (i.e. install has completed, whether on this boot or a previous one)
+      # before touching the directory, not just wait for the directory itself.
+      lifecycleHooks:
+        postStart:
+          exec:
+            command:
+              - /bin/bash
+              - -c
+              - |
+                for i in $(seq 1 180); do
+                  [ -f /bitnami/wordpress/wp-config.php ] && break
+                  sleep 1
+                done
+                if [ ! -f /bitnami/wordpress/wp-config.php ]; then
+                  echo "Timed out waiting for /bitnami/wordpress/wp-config.php" >&2
+                  exit 1
+                fi
+                mkdir -p /bitnami/wordpress/.well-known
+                ln -sfn /bitnami/wordpress/.well-known /opt/bitnami/wordpress/.well-known
     YAML
   ]
 }

@@ -32,6 +32,7 @@ dependency "eks" {
     node_security_group_id = "sg-00000000000000001"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 terraform {

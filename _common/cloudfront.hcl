@@ -91,7 +91,11 @@ locals {
     # of CloudFront's "Amazon CloudFront" placeholder. No caching happens
     # on this behavior (max_ttl = 0), so there's no cache-key fragmentation
     # cost to worry about here.
-    headers         = ["Host", "User-Agent"]
+    #
+    # Authorization is forwarded so cookie-less clients (WooCommerce mobile
+    # app, other REST consumers using Application Passwords) can send HTTP
+    # Basic auth to /wp-json/*; legacy forwarded_values drops it otherwise.
+    headers         = ["Host", "User-Agent", "Authorization"]
     cookies_forward = "all"
   }
 

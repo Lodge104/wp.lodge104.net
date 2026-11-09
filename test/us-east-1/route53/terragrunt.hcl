@@ -23,6 +23,7 @@ dependency "cloudfront" {
     cloudfront_distribution_hosted_zone_id = "Z2FDTNDATAQYW2"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "cdn" {
@@ -33,6 +34,7 @@ dependency "cdn" {
     cloudfront_distribution_hosted_zone_id = "Z2FDTNDATAQYW2"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 dependency "wordpress" {

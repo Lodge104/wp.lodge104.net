@@ -11,7 +11,7 @@ locals {
   # _common/alb-security-group.hcl restricts ALB ingress to. Resolved here
   # at plan/apply time (not hardcoded) so it can't go stale as AWS updates
   # the list. Each env's wordpress/terragrunt.hcl feeds these CIDRs (plus
-  # its own VPC CIDR) to Apache's mod_remoteip (via apacheConfiguration),
+  # its own VPC CIDR) to Apache's mod_remoteip via the mounted config file,
   # so Apache can correctly peel both proxy hops -- the ALB and the
   # CloudFront edge -- off the X-Forwarded-For chain and resolve the real
   # visitor IP instead of REMOTE_ADDR/X-Forwarded-For showing one of

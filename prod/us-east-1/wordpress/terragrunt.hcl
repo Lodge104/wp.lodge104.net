@@ -205,8 +205,14 @@ inputs = {
       # _common/wordpress.hcl (memcached.enabled: true) -- no external
       # ElastiCache endpoint needed. See issue #32.
 
+      # NOTE: do not use '&&' (or any '&') in this block. The Bitnami image
+      # appends it into wp-config.php with sed, where '&' in the replacement
+      # expands to the matched text and corrupts the file (PHP parse error,
+      # wp core multisite-install exits 255, pod CrashLoopBackOffs on any
+      # fresh install). Prod only escapes it because its wp-config.php is
+      # already persisted (wordpressSkipInstall: true).
       wordpressExtraConfigContent: |
-        if (isset($_SERVER['HTTP_HOST']) && strcasecmp($_SERVER['HTTP_HOST'], 'www.${local.domain}') === 0) {
+        if (strcasecmp($_SERVER['HTTP_HOST'] ?? '', 'www.${local.domain}') === 0) {
           header('Location: https://${local.domain}' . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
           exit;
         }
@@ -215,8 +221,8 @@ inputs = {
             'provider' => 'aws',
             'use-server-roles' => true,
         ) ) );
-        define( 'FLUENTMAIL_AWS_ACCESS_KEY_ID', '${dependency.ses.outputs.access_key_id}' );
-        define( 'FLUENTMAIL_AWS_SECRET_ACCESS_KEY', '${dependency.ses.outputs.secret_access_key}' );
+        define( 'FLUENTMAIL_AWS_ACCESS_KEY_ID', '${try(coalesce(dependency.ses.outputs.access_key_id), "")}' );
+        define( 'FLUENTMAIL_AWS_SECRET_ACCESS_KEY', '${try(coalesce(dependency.ses.outputs.secret_access_key), "")}' );
 
       ingress:
         hostname: ${local.env}.wp.${local.domain}
@@ -372,7 +378,7 @@ inputs = {
               LoadModule remoteip_module modules/mod_remoteip.so
               RemoteIPHeader X-Forwarded-For
               %{for cidr in local.apache_remoteip_internal_proxies~}
-              RemoteIPInternalProxy ${cidr}
+              RemoteIPTrustedProxy ${cidr}
               %{endfor~}
     YAML
     ,

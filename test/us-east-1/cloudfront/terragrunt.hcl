@@ -80,7 +80,7 @@ inputs = merge(
           # Reuse persistent connections to the ALB instead of a fresh
           # TCP+TLS handshake per cache-miss request (AWS max is 60s).
           origin_keepalive_timeout = 60
-          origin_read_timeout      = 60
+          origin_read_timeout = 120
         }
       }
       error-502 = {

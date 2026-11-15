@@ -53,6 +53,13 @@ inputs = merge(
     workspace_alias               = "${local.project}-${local.env}"
     eks_cluster_arn               = dependency.eks.outputs.cluster_arn
     eks_cluster_security_group_id = dependency.eks.outputs.cluster_security_group_id
-    subnet_ids                    = dependency.vpc.outputs.intra_subnets
+    # length(...) fallback: see the matching note in ../eks/terragrunt.hcl --
+    # a destroyed vpc's intra_subnets output key is present but [], which
+    # mock_outputs_merge_strategy_with_state can't fall back from.
+    subnet_ids = (
+      length(dependency.vpc.outputs.intra_subnets) > 0
+      ? dependency.vpc.outputs.intra_subnets
+      : ["subnet-00000000000000001", "subnet-00000000000000002", "subnet-00000000000000003"]
+    )
   }
 )

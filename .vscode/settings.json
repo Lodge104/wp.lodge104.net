@@ -253,4 +253,5 @@
     "github.copilot.chat.anthropic.promptCaching.extendedTtl": true,
     "github.copilot.chat.anthropic.promptCaching.extendedTtlMessages": true,
     "github.copilot.chat.anthropic.contextEditing.mode": "clear-tooluse",
+    "languageModelChatProvider.bedrock.profile": "default",
 }

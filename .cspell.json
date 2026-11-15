@@ -1,10 +1,31 @@
 {
   "words": [
     "artipacked",
+    "awswaf",
+    "botocore",
+    "DMARC",
+    "endfor",
+    "euxo",
+    "EFSCSI",
+    "IMDS",
+    "Jetpack",
+    "jetpack",
+    "KUBECONFIG",
+    "kubeconfig",
     "megalint",
+    "mktemp",
+    "multicall",
+    "mysqldump",
+    "netdev",
+    "noresvport",
+    "pingbacks",
+    "pipefail",
+    "resourcegroupstaggingapi",
     "sarif",
     "stefanzweifel",
     "tfsec",
+    "tradingpost",
+    "unaliased",
     "zizmor"
   ]
 }

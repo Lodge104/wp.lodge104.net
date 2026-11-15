@@ -105,7 +105,6 @@ module "cloudfront" {
   http_version        = var.http_version
   wait_for_deployment = var.wait_for_deployment
 
-  create_origin_access_control = true
   origin_access_control = {
     (var.origin_access_control_name) = {
       description      = "CloudFront access to ${var.bucket_name}"
@@ -118,7 +117,7 @@ module "cloudfront" {
   origin = {
     cdn = {
       domain_name           = aws_s3_bucket.cdn.bucket_regional_domain_name
-      origin_access_control = var.origin_access_control_name
+      origin_access_control_key = var.origin_access_control_name
     }
   }
 
@@ -128,8 +127,13 @@ module "cloudfront" {
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD", "OPTIONS"]
     compress               = true
-    query_string           = false
-    cookies_forward        = "none"
+
+    forwarded_values = {
+      query_string = false
+      cookies = {
+        forward = "none"
+      }
+    }
 
     # Assets never change: max out edge TTLs so CloudFront never has to
     # revalidate with the origin once an object is cached at an edge.
@@ -146,8 +150,9 @@ module "cloudfront" {
     ssl_support_method       = "sni-only"
   }
 
-  geo_restriction = {
-    restriction_type = "none"
-    locations        = []
+  restrictions = {
+    geo_restriction = {
+      restriction_type = "none"
+    }
   }
 }

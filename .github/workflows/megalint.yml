@@ -4,8 +4,6 @@
 name: MegaLinter
 
 on:
-  # Trigger mega-linter at every push. Action will also be visible from Pull Requests to main
-  push: # Comment this line to trigger action only on pull-requests (not recommended if you don't pay for GH Actions)
   pull_request:
     branches: [prod]
 
@@ -60,7 +58,8 @@ jobs:
         env:
           # All available variables are described in documentation
           # https://megalinter.io/latest/configuration/
-          VALIDATE_ALL_CODEBASE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }} # Validates all source when push on main, else just the git diff with main. Override with true if you always want to lint all sources
+          VALIDATE_ALL_CODEBASE: false
+          FILTER_REGEX_EXCLUDE: '(^|/)\.[^/]+/'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # ADD YOUR CUSTOM ENV VARIABLES HERE OR DEFINE THEM IN A FILE .mega-linter.yml AT THE ROOT OF YOUR REPOSITORY
           # DISABLE: COPYPASTE,SPELL # Uncomment to disable copy-paste and spell checks

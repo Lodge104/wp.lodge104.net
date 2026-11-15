@@ -18,9 +18,10 @@ dependency "eks" {
   config_path = "../eks"
 
   mock_outputs = {
-    cluster_name      = "${local.project}-${local.env}"
-    cluster_endpoint  = "https://example.eks.amazonaws.com"
-    cluster_version   = "1.37"
+    cluster_name                       = "${local.project}-${local.env}"
+    cluster_endpoint                   = "https://example.eks.amazonaws.com"
+    cluster_certificate_authority_data = base64encode(file("${get_repo_root()}/_common/mock-ca.pem"))
+    cluster_version                    = "1.37"
     oidc_provider_arn = "arn:aws:iam::000000000000:oidc-provider/oidc.eks.${local.region}.amazonaws.com/id/00000000000000000000000000000000"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
@@ -45,14 +46,10 @@ generate "helm_provider" {
   path      = "helm_provider.tf"
   if_exists = "overwrite_terragrunt"
   contents  = <<-EOF
-    data "aws_eks_cluster" "eks_addons" {
-      name = "${dependency.eks.outputs.cluster_name}"
-    }
-
     provider "helm" {
       kubernetes = {
-        host                   = data.aws_eks_cluster.eks_addons.endpoint
-        cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks_addons.certificate_authority[0].data)
+        host                   = "${dependency.eks.outputs.cluster_endpoint}"
+        cluster_ca_certificate = base64decode("${dependency.eks.outputs.cluster_certificate_authority_data}")
 
         exec = {
           api_version = "client.authentication.k8s.io/v1beta1"
@@ -63,8 +60,8 @@ generate "helm_provider" {
     }
 
     provider "kubernetes" {
-      host                   = data.aws_eks_cluster.eks_addons.endpoint
-      cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks_addons.certificate_authority[0].data)
+      host                   = "${dependency.eks.outputs.cluster_endpoint}"
+      cluster_ca_certificate = base64decode("${dependency.eks.outputs.cluster_certificate_authority_data}")
 
       exec {
         api_version = "client.authentication.k8s.io/v1beta1"

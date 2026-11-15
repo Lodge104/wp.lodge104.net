@@ -96,7 +96,7 @@ resource "aws_cloudfront_response_headers_policy" "cdn" {
 
 module "cloudfront" {
   source  = "terraform-aws-modules/cloudfront/aws"
-  version = "3.4.1"
+  version = "6.7.1"
 
   comment             = var.comment
   aliases             = var.aliases

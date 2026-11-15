@@ -112,7 +112,7 @@ dependency "ses" {
   mock_outputs = {
     smtp_username               = "mock-smtp-username"
     smtp_credentials_secret_arn = "arn:aws:secretsmanager:${local.region}:000000000000:secret:mock-ses-xxxxxx"
-    access_key_id               = "AKIAIOSFODNN7EXAMPLE"
+    access_key_id               = "AKIAIOSFODNN7EXAMPLE" # cspell:disable-line
     secret_access_key           = "mock-secret-access-key"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]

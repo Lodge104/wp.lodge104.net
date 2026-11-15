@@ -23,7 +23,7 @@ locals {
   http_version        = "http2and3"
   wait_for_deployment = false
 
-  # Default cache behaviour – front-end pages, comments, REST API.
+  # Default cache behavior – front-end pages, comments, REST API.
   default_cache_behavior = {
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
@@ -56,8 +56,8 @@ locals {
     # that's an acceptable trade-off for correct bot detection.
     headers         = ["Host", "User-Agent"]
     cookies_forward = "whitelist"
-    # AWSALB/AWSALBCORS (ALB stickiness) are deliberately NOT whitelisted:
-    # every viewer gets a different stickiness cookie value, and forwarded
+    # Load-balancer affinity cookies are deliberately NOT whitelisted:
+    # every viewer gets a different affinity cookie value, and forwarded
     # cookies are part of the legacy cache key, so including them gave each
     # visitor a private cache entry (~10% HTML hit ratio measured in prod
     # CloudFront logs). Stickiness is only needed for the session-specific

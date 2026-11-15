@@ -42,6 +42,15 @@ dependency "waf" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+dependency "logs" {
+  config_path = "../cloudfront-logs"
+
+  mock_outputs = {
+    bucket_domain_name = "mock-cloudfront-logs.s3.amazonaws.com"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 terraform {
   source = "tfr:///terraform-aws-modules/cloudfront/aws?version=3.4.1"
 }
@@ -148,5 +157,15 @@ inputs = merge(
 
     custom_error_response = local.common.locals.custom_error_response
     web_acl_id            = dependency.waf.outputs.web_acl_arn
+
+    # Standard access logs (status, time-taken, edge result type, cache
+    # hit/miss) for debugging edge-side failures such as issue #40; WAF logs
+    # carry no response status. Cookies are not logged (they hold session
+    # tokens). Objects expire after 30 days (see _modules/cloudfront-logs).
+    logging_config = {
+      bucket          = dependency.logs.outputs.bucket_domain_name
+      prefix          = "prod/"
+      include_cookies = false
+    }
   }
 )

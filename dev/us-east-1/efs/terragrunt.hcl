@@ -27,8 +27,10 @@ dependency "eks" {
   config_path = "../eks"
 
   mock_outputs = {
-    cluster_name           = "${local.project}-${local.env}"
-    node_security_group_id = "sg-00000000000000001"
+    cluster_name                       = "${local.project}-${local.env}"
+    cluster_endpoint                   = "https://example.eks.amazonaws.com"
+    cluster_certificate_authority_data = base64encode(file("${get_repo_root()}/_common/mock-ca.pem"))
+    node_security_group_id             = "sg-00000000000000001"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -42,6 +44,9 @@ inputs = {
   vpc_id                     = dependency.vpc.outputs.vpc_id
   subnet_ids                 = dependency.vpc.outputs.private_subnets
   eks_cluster_name           = dependency.eks.outputs.cluster_name
+  eks_cluster_endpoint       = dependency.eks.outputs.cluster_endpoint
+
+  eks_cluster_certificate_authority_data = dependency.eks.outputs.cluster_certificate_authority_data
   eks_node_security_group_id = dependency.eks.outputs.node_security_group_id
   region                     = local.region
 

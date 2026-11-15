@@ -14,7 +14,17 @@ variable "subnet_ids" {
 }
 
 variable "eks_cluster_name" {
-  description = "EKS cluster name. Used to look up cluster endpoint/CA for the Kubernetes provider."
+  description = "EKS cluster name. Used for aws eks get-token and Pod Identity association."
+  type        = string
+}
+
+variable "eks_cluster_endpoint" {
+  description = "EKS cluster API endpoint for the Kubernetes provider."
+  type        = string
+}
+
+variable "eks_cluster_certificate_authority_data" {
+  description = "Base64-encoded EKS cluster CA certificate for the Kubernetes provider."
   type        = string
 }
 

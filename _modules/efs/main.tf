@@ -2,11 +2,11 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.73"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = "~> 2.32"
+      version = "~> 3.5"
     }
   }
 }
@@ -74,13 +74,9 @@ resource "aws_security_group_rule" "nfs_from_eks_nodes" {
 # Kubernetes StorageClass – created via the kubernetes provider so Helm can
 # reference it without a separate kubectl apply step.
 # ---------------------------------------------------------------------------
-data "aws_eks_cluster" "this" {
-  name = var.eks_cluster_name
-}
-
 provider "kubernetes" {
-  host                   = data.aws_eks_cluster.this.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+  host                   = var.eks_cluster_endpoint
+  cluster_ca_certificate = base64decode(var.eks_cluster_certificate_authority_data)
 
   exec {
     api_version = "client.authentication.k8s.io/v1"

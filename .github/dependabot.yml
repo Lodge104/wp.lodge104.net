@@ -9,7 +9,7 @@ updates:
     directories:
       - "/_modules/*"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
   - package-ecosystem: "github-actions"
     directory: "/.github/workflows" # Location of package manifests
     schedule:
@@ -17,4 +17,4 @@ updates:
   - package-ecosystem: "devcontainers"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"

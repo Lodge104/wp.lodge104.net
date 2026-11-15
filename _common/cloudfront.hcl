@@ -56,6 +56,13 @@ locals {
     # that's an acceptable trade-off for correct bot detection.
     headers         = ["Host", "User-Agent"]
     cookies_forward = "whitelist"
+    # AWSALB/AWSALBCORS (ALB stickiness) are deliberately NOT whitelisted:
+    # every viewer gets a different stickiness cookie value, and forwarded
+    # cookies are part of the legacy cache key, so including them gave each
+    # visitor a private cache entry (~10% HTML hit ratio measured in prod
+    # CloudFront logs). Stickiness is only needed for the session-specific
+    # behaviors (wp-admin, wp-login, wp-json, cart/checkout/my-account),
+    # which forward all cookies via wordpress_no_cache_behavior.
     cookies_whitelisted_names = [
       "comment_author_*",
       "wordpress_logged_in_*",
@@ -66,7 +73,6 @@ locals {
       "woocommerce_cart_hash",
       "woocommerce_items_in_cart",
       "woocommerce_recently_viewed",
-      "AWSALB*",
     ]
   }
 

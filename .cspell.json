@@ -34,7 +34,9 @@
     "unaliased",
     "vhost",
     "vhosts",
+    "webacl",
     "webroot",
+    "keepalive",
     "zizmor"
   ]
 }

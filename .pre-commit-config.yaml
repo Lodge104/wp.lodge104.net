@@ -17,3 +17,23 @@ repos:
           - --hook-config=--path-to-file=README.md
           - --hook-config=--add-to-existing-file=true
           - --hook-config=--create-file-if-not-exist=true
+        # Only the reusable modules have terraform-docs READMEs; Terragrunt
+        # shims/fragments are documented in _common/README.md.
+        files: ^_modules/
+
+  # Terragrunt layout checks (#45). Same checks as
+  # .github/workflows/terragrunt-validate.yml.
+  - repo: local
+    hooks:
+      - id: terragrunt-hcl-fmt
+        name: terragrunt hcl fmt --check
+        entry: terragrunt hcl fmt --check
+        language: system
+        files: \.hcl$
+        pass_filenames: false
+      - id: terragrunt-lint-shims
+        name: thin-shim lint (scripts/lint-shims.sh)
+        entry: scripts/lint-shims.sh
+        language: system
+        files: (^|/)(terragrunt|env|region|project|root)\.hcl$|^_common/
+        pass_filenames: false

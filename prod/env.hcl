@@ -1,6 +1,16 @@
 locals {
   env = "prod"
 
+  # CloudFront ALB origin read timeout (seconds); default 60.
+  cloudfront_origin_read_timeout = 180
+
+  # Serves the apex domain (lodge104.net, www., store., cdn.) in addition to
+  # prod.wp.lodge104.net. Drives ACM SANs/validation zone and CDN aliases.
+  serves_root_domain = true
+
+  # CloudFront standard access logs -> prod/us-east-1/cloudfront-logs.
+  cloudfront_access_logs = true
+
   # Environment-specific network and workload sizing.
   vpc_cidr = "10.0.0.0/16"
 
@@ -37,14 +47,10 @@ locals {
     max_capacity = 32
   }
 
-  # Retained temporarily so the existing managed cache can be destroyed using
-  # its original Terragrunt state key. Remove after the targeted destroy and
-  # state/resource verification are complete.
-  elasticache = {
-    num_cache_nodes       = 1
-    node_type             = "cache.r6g.large"
-    autoscaling_max_nodes = 6
-  }
+  # Data-protection settings (RDS deletion protection, final snapshot,
+  # 30-day backups, CDN bucket force_destroy=false) default from is_prod in
+  # _common/rds.hcl and _common/cdn.hcl -- set rds_* / cdn_* here only to
+  # deviate from them.
 
   wordpress = {
     blog_name                = "Lodge104"
@@ -52,7 +58,6 @@ locals {
     resources_preset         = "large"
     persistence_size         = "20Gi"
     pdb_create               = true
-    pdb_min_available        = 1
     pod_anti_affinity_preset = "hard"
   }
 }

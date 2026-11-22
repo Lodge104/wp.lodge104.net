@@ -1,26 +1,10 @@
-locals {
-  common       = read_terragrunt_config("${get_repo_root()}/_common/route53.hcl")
-  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
-
-  env    = "dev"
-  domain = local.project_vars.locals.domain
-}
-
+# Thin shim – source, dependencies and inputs live in _common/route53-zone.hcl.
 include "root" {
-  path   = find_in_parent_folders()
-  expose = true
+  path = find_in_parent_folders("root.hcl")
 }
 
-terraform {
-  source = "tfr:///terraform-aws-modules/route53/aws?version=6.5.0"
+include "common" {
+  path = "${get_repo_root()}/_common/route53-zone.hcl"
 }
 
-inputs = merge(
-  local.common.locals,
-  {
-    create_zone   = true
-    name          = "${local.env}.wp.${local.domain}"
-    enable_dnssec = true
-    records       = {}
-  }
-)
+inputs = {}

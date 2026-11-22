@@ -46,6 +46,18 @@
 				"--metadata",
 				"AWS_REGION=us-west-2"
 			]
+		},
+		"pagespeed-insights": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"-y",
+				"pagespeed-insights-mcp"
+			],
+			"env": {
+				"GOOGLE_API_KEY": "${input:google-api-key}",
+				"NODE_ENV": "production"
+			}
 		}
 	},
 	"inputs": [
@@ -68,6 +80,12 @@
 			"description": "",
 			"password": false,
 			"default": "false"
+		},
+		{
+			"id": "google-api-key",
+			"type": "promptString",
+			"description": "Google API key (PageSpeed Insights API enabled)",
+			"password": true
 		}
 	]
 }

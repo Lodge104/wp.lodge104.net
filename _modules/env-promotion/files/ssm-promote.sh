@@ -52,7 +52,7 @@ DOMAIN="{{ Domain }}"
 RELEASE_NAME="{{ ReleaseName }}"
 NAMESPACE="{{ Namespace }}"
 
-# Matches _common/rds.hcl -- shared across every environment's cluster.
+# Matches _common/shared/rds.hcl -- shared across every environment's cluster.
 DB_NAME="lodge104"
 DB_USER="lodge104admin"
 

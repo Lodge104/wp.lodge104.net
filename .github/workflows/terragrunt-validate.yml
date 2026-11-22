@@ -1,0 +1,68 @@
+# Static checks for the Terragrunt layout (#45): formatting and thin-shim
+# shape. No AWS credentials needed -- nothing here calls AWS or Terraform.
+name: terragrunt-validate
+
+on:
+  pull_request:
+    paths:
+      - "**/*.hcl"
+      - "_common/**"
+      - "scripts/**"
+      - ".github/workflows/terragrunt-validate.yml"
+  push:
+    branches: [prod]
+    paths:
+      - "**/*.hcl"
+      - "_common/**"
+      - "scripts/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  # Keep in sync with the dev container (terragrunt --version).
+  TERRAGRUNT_VERSION: "1.1.6"
+
+jobs:
+  validate:
+    name: hcl fmt + shim lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Terragrunt
+        run: |
+          curl -fsSL -o terragrunt \
+            "https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_amd64"
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/terragrunt
+          terragrunt --version
+
+      - name: terragrunt hcl fmt --check
+        run: terragrunt hcl fmt --check
+
+      - name: Thin-shim lint
+        run: scripts/lint-shims.sh
+
+      # Renders every stack offline (dependency outputs not fetched). Catches
+      # HCL/template errors in _common fragments without AWS access. Stacks
+      # whose locals call the AWS CLI (alb-security-group, wordpress) need
+      # credentials and are skipped here.
+      - name: Render stacks (offline)
+        run: |
+          mapfile -t stacks < <(
+            find dev test prod global -name terragrunt.hcl -not -path '*/.terragrunt-cache/*' -printf '%h\n' |
+              grep -vE '/(alb-security-group|wordpress)$' | sort
+          )
+          scripts/render-snapshot.sh "${RUNNER_TEMP}/render" "${stacks[@]}"
+
+      - name: Script syntax
+        run: |
+          for s in scripts/*.sh; do bash -n "$s"; done

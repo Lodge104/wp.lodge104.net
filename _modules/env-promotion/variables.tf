@@ -24,13 +24,13 @@ variable "domain" {
 }
 
 variable "release_name" {
-  description = "Helm release name used by the WordPress chart (the helm-release module's release_name input, see _common/wordpress.hcl). Used to find the WordPress pod to exec into."
+  description = "Helm release name used by the WordPress chart (the helm-release module's release_name input, see _common/shared/wordpress.hcl). Used to find the WordPress pod to exec into."
   type        = string
   default     = "wordpress"
 }
 
 variable "wordpress_namespace" {
-  description = "Kubernetes namespace the WordPress Helm release is installed into (see _common/wordpress.hcl). The bastion's EKS access entry is scoped to this namespace."
+  description = "Kubernetes namespace the WordPress Helm release is installed into (see _common/shared/wordpress.hcl). The bastion's EKS access entry is scoped to this namespace."
   type        = string
   default     = "wordpress"
 }

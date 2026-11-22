@@ -1,11 +1,16 @@
 # -----------------------------------------------------------------------------
-# Root Terragrunt configuration
+# Root Terragrunt configuration (root.hcl)
 # Defines remote state backend and shared provider/inputs for all modules.
+#
+# Named root.hcl (not terragrunt.hcl) per current Terragrunt convention so the
+# repo root is never mistaken for a unit. Every stack includes it with
+#   include "root" { path = find_in_parent_folders("root.hcl") }
+# The state key is still derived from path_relative_to_include(), i.e. the
+# stack path relative to this file, so the rename does not move any state.
 # -----------------------------------------------------------------------------
 
-# Note: env/region locals are NOT read here because find_in_parent_folders is
-# evaluated in the root file's own directory context and cannot traverse into
-# child env/region trees. Each child module reads those files in its own locals.
+# Note: env/region context is resolved by _common/_env.hcl (read from the
+# stack or its _common/<stack>.hcl fragment), not here.
 
 locals {
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))

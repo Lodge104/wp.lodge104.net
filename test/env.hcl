@@ -1,6 +1,9 @@
 locals {
   env = "test"
 
+  # CloudFront ALB origin read timeout (seconds); default 60.
+  cloudfront_origin_read_timeout = 120
+
   # Environment-specific network and workload sizing.
   vpc_cidr = "10.20.0.0/16"
 
@@ -38,7 +41,6 @@ locals {
     # this can only go up. On EFS the size isn't enforced and doesn't affect cost.
     persistence_size         = "20Gi"
     pdb_create               = true
-    pdb_min_available        = 1
     pod_anti_affinity_preset = "hard"
   }
 }

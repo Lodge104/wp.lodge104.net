@@ -1,4 +1,19 @@
-# Common CloudFront defaults – override in each env's terragrunt.hcl as needed.
+# -----------------------------------------------------------------------------
+# cloudfront – WordPress CloudFront distribution in front of the ALB origin
+# (origin.<env>.wp.<domain>), with WAF, static-asset cache policy and branded
+# 502/503/403 error pages.
+#
+# Env-level knobs (<env>/env.hcl):
+#   serves_root_domain              also alias <domain>, www.<domain>,
+#                                   store.<domain>
+#   cloudfront_origin_read_timeout  ALB origin read timeout in seconds
+#                                   (default: 60)
+#   cloudfront_access_logs          standard access logs to the env's
+#                                   cloudfront-logs stack (default: false;
+#                                   <env>/<region>/cloudfront-logs must exist)
+#
+# Full Terragrunt fragment included by <env>/<region>/cloudfront/
+# terragrunt.hcl. Env shims only carry real overrides in `inputs`.
 #
 # Caching strategy tuned for WordPress/WooCommerce (bitnami/wordpress served
 # behind the ALB origin, no server-side full-page cache plugin installed):
@@ -17,6 +32,27 @@
 #   - Static assets (uploads, core/theme/plugin files) are safe to cache
 #     aggressively since they're content-addressed by path/filename.
 locals {
+  ctx = read_terragrunt_config("${get_repo_root()}/_common/_env.hcl").locals
+
+  origin_read_timeout = try(local.ctx.env_vars.cloudfront_origin_read_timeout, 60)
+  access_logs         = try(local.ctx.env_vars.cloudfront_access_logs, false)
+
+  # Multisite "store" site shares this distribution/origin. The legacy
+  # cdn.<domain> alias remains on the separate media distribution
+  # (_common/cdn.hcl).
+  aliases = concat(
+    [local.ctx.env_domain, "store.${local.ctx.env_domain}"],
+    local.ctx.serves_root_domain ? [local.ctx.domain, "www.${local.ctx.domain}", "store.${local.ctx.domain}"] : [],
+  )
+
+  # Shared https-only custom origin settings (ALB + error-page origins).
+  https_origin = {
+    http_port              = 80
+    https_port             = 443
+    origin_protocol_policy = "https-only"
+    origin_ssl_protocols   = ["TLSv1.2"]
+  }
+
   price_class = "PriceClass_100" # US, Canada, Europe
 
   is_ipv6_enabled     = true
@@ -221,3 +257,131 @@ locals {
     locations        = []
   }
 }
+
+terraform {
+  source = "tfr:///terraform-aws-modules/cloudfront/aws?version=3.4.1"
+}
+
+dependency "acm" {
+  config_path = "../acm"
+
+  mock_outputs = {
+    acm_certificate_arn = "arn:aws:acm:${local.ctx.region}:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+  }
+  mock_outputs_allowed_terraform_commands = local.ctx.mock_outputs_allowed_terraform_commands
+  mock_outputs_merge_strategy_with_state  = "shallow"
+}
+
+dependency "static_assets_cache_policy" {
+  config_path = "../cloudfront-cache-policy"
+
+  mock_outputs = {
+    id = "mock-response-headers-policy-id"
+  }
+  mock_outputs_allowed_terraform_commands = local.ctx.mock_outputs_allowed_terraform_commands
+  mock_outputs_merge_strategy_with_state  = "shallow"
+}
+
+dependency "waf" {
+  config_path = "../cloudfront-waf"
+
+  mock_outputs = {
+    web_acl_arn = "arn:aws:wafv2:us-east-1:123456789012:global/webacl/mock/00000000-0000-0000-0000-000000000000"
+  }
+  mock_outputs_allowed_terraform_commands = local.ctx.mock_outputs_allowed_terraform_commands
+  mock_outputs_merge_strategy_with_state  = "shallow"
+}
+
+# Only wired up when cloudfront_access_logs = true (disabled dependencies are
+# not added to the run graph and resolve to their mocks).
+dependency "logs" {
+  enabled     = local.access_logs
+  config_path = "../cloudfront-logs"
+
+  mock_outputs = {
+    bucket_domain_name = "mock-cloudfront-logs.s3.amazonaws.com"
+  }
+  mock_outputs_allowed_terraform_commands = local.ctx.mock_outputs_allowed_terraform_commands
+  mock_outputs_merge_strategy_with_state  = "shallow"
+}
+
+inputs = merge(
+  {
+    comment = "${local.ctx.project} ${local.ctx.env} distribution"
+    aliases = local.aliases
+
+    price_class         = local.price_class
+    is_ipv6_enabled     = local.is_ipv6_enabled
+    http_version        = local.http_version
+    wait_for_deployment = local.wait_for_deployment
+    geo_restriction     = local.geo_restriction
+
+    viewer_certificate = merge(local.viewer_certificate, {
+      acm_certificate_arn = dependency.acm.outputs.acm_certificate_arn
+    })
+
+    origin = {
+      alb = {
+        # A DNS alias to the ALB, covered by the *.<env>.wp.<domain> ACM
+        # wildcard cert (see _common/route53.hcl) – CloudFront's HTTPS
+        # handshake to a custom origin validates the cert against the origin
+        # domain name, which the ALB's own auto-generated hostname is never
+        # covered by.
+        domain_name = "origin.${local.ctx.env_domain}"
+        custom_origin_config = merge(local.https_origin, {
+          # Reuse persistent connections to the ALB instead of a fresh
+          # TCP+TLS handshake per cache-miss request (AWS max is 60s).
+          origin_keepalive_timeout = 60
+          origin_read_timeout      = local.origin_read_timeout
+        })
+      }
+      error-502 = {
+        domain_name          = local.error_page_origins.error_502.domain_name
+        custom_origin_config = local.https_origin
+      }
+      error-503 = {
+        domain_name          = local.error_page_origins.error_503.domain_name
+        custom_origin_config = local.https_origin
+      }
+      error-403 = {
+        domain_name          = local.error_page_origins.error_403.domain_name
+        custom_origin_config = local.https_origin
+      }
+    }
+
+    default_cache_behavior = merge(local.default_cache_behavior, {
+      target_origin_id = "alb"
+    })
+
+    # Force long-lived Cache-Control on the static-asset behaviors (max_ttl
+    # a year, see wordpress_static_asset_behavior above); leave the always-
+    # dynamic no-cache behaviors (max_ttl = 0) untouched.
+    ordered_cache_behavior = concat(
+      [merge(local.error_page_behavior, {
+        path_pattern     = "/.well-known/*"
+        target_origin_id = "alb"
+      })],
+      [
+        for behavior in local.ordered_cache_behavior : merge(
+          behavior,
+          lookup(behavior, "max_ttl", 0) >= 86400 ? {
+            response_headers_policy_id = dependency.static_assets_cache_policy.outputs.id
+          } : {}
+        )
+      ]
+    )
+    custom_error_response = local.custom_error_response
+    web_acl_id            = dependency.waf.outputs.web_acl_arn
+  },
+  # Standard access logs (status, time-taken, edge result type, cache
+  # hit/miss) for debugging edge-side failures such as issue #40; WAF logs
+  # carry no response status. Cookies are not logged (they hold session
+  # tokens). Objects expire after 30 days (see _modules/cloudfront-logs).
+  local.access_logs ? {
+    logging_config = {
+      bucket          = dependency.logs.outputs.bucket_domain_name
+      prefix          = "${local.ctx.env}/"
+      include_cookies = false
+    }
+  } : {},
+)

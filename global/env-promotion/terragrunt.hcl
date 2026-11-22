@@ -1,5 +1,5 @@
 locals {
-  wordpress_common = read_terragrunt_config("${get_repo_root()}/_common/wordpress.hcl")
+  wordpress_common = read_terragrunt_config("${get_repo_root()}/_common/shared/wordpress.hcl")
   region_vars      = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   project_vars     = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 
@@ -36,7 +36,7 @@ inputs = {
   bastion_instance_id = dependency.bastion.outputs.instance_id
   bastion_role_arn    = dependency.bastion.outputs.role_arn
 
-  # Matches _common/wordpress.hcl -- the Helm release name and namespace
+  # Matches _common/shared/wordpress.hcl -- the Helm release name and namespace
   # are shared across every environment's WordPress deployment.
   release_name        = local.wordpress_common.locals.release_name
   wordpress_namespace = local.wordpress_common.locals.namespace

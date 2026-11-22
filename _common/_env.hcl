@@ -77,6 +77,13 @@ locals {
   # global/, where stacks are not tied to a single env).
   env_domain = local.is_global ? null : "${local.env}.wp.${local.domain}"
 
+  # Whether this env also serves the apex domain (lodge104.net, www., store.,
+  # cdn.) in addition to its own env_domain. Set in <env>/env.hcl.
+  serves_root_domain = try(local.env_vars.serves_root_domain, false)
+
+  # Public hosted zone of the apex domain (see project.hcl).
+  parent_zone_id = local.project_vars.parent_zone_id
+
   alb_hosted_zone_id = try(local.region_vars.alb_hosted_zone_id, null)
 
   # Standard mock policy for dependency blocks.

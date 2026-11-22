@@ -1,6 +1,6 @@
 locals {
   common       = read_terragrunt_config("${get_repo_root()}/_common/wordpress.hcl")
-  rds_common   = read_terragrunt_config("${get_repo_root()}/_common/rds.hcl")
+  rds_common   = read_terragrunt_config("${get_repo_root()}/_common/shared/rds.hcl")
   env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
   region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))

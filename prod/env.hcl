@@ -1,6 +1,10 @@
 locals {
   env = "prod"
 
+  # Serves the apex domain (lodge104.net, www., store., cdn.) in addition to
+  # prod.wp.lodge104.net. Drives ACM SANs/validation zone and CDN aliases.
+  serves_root_domain = true
+
   # Environment-specific network and workload sizing.
   vpc_cidr = "10.0.0.0/16"
 
@@ -36,6 +40,11 @@ locals {
     # reader) topology instead of 3. See issue #32.
     max_capacity = 32
   }
+
+  # Data-protection settings (RDS deletion protection, final snapshot,
+  # 30-day backups, CDN bucket force_destroy=false) default from is_prod in
+  # _common/rds.hcl and _common/cdn.hcl -- set rds_* / cdn_* here only to
+  # deviate from them.
 
   # Retained temporarily so the existing managed cache can be destroyed using
   # its original Terragrunt state key. Remove after the targeted destroy and

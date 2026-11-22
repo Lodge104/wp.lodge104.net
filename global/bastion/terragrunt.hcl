@@ -1,6 +1,6 @@
 locals {
   common       = read_terragrunt_config("${get_repo_root()}/_common/bastion.hcl")
-  eks_common   = read_terragrunt_config("${get_repo_root()}/_common/eks.hcl")
+  eks_common   = read_terragrunt_config("${get_repo_root()}/_common/shared/eks.hcl")
   region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
 

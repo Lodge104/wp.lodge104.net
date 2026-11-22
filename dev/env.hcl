@@ -16,6 +16,9 @@ locals {
     }
   }
 
+  # No Cluster Autoscaler ASG discovery tags on dev's node groups.
+  eks_cluster_autoscaler_tags = false
+
   rds_instances = {
     writer = { instance_class = "db.serverless" }
   }
@@ -25,6 +28,13 @@ locals {
     max_capacity             = 4
     seconds_until_auto_pause = 300
   }
+
+  # Dev has no destroy-time final-snapshot hook (skip_final_snapshot only).
+  rds_destroy_snapshot_hook = false
+
+  # Dev's uploads CDN uses the module's default OAC name ("cdn") rather than
+  # "cdn-dev". Renaming would replace the OAC.
+  cdn_origin_access_control_name = null
 
   # ElastiCache block removed -- WordPress now uses the in-cluster
   # Memcached sub-chart instead of the managed ElastiCache service. See

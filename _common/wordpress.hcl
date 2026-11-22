@@ -211,12 +211,14 @@ generate "helm_provider" {
   path      = "helm_provider.tf"
   if_exists = "overwrite_terragrunt"
   contents  = <<-EOF
+    # helm provider v3 (_modules/helm-release requires ~> 3.3): `kubernetes`
+    # and `exec` are object attributes, not nested blocks.
     provider "helm" {
-      kubernetes {
+      kubernetes = {
         host                   = "${dependency.eks.outputs.cluster_endpoint}"
         cluster_ca_certificate = base64decode("${dependency.eks.outputs.cluster_certificate_authority_data}")
 
-        exec {
+        exec = {
           api_version = "client.authentication.k8s.io/v1"
           command     = "aws"
           args        = ["eks", "get-token", "--cluster-name", "${dependency.eks.outputs.cluster_name}", "--region", "${local.ctx.region}"]

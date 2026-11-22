@@ -48,7 +48,7 @@ while IFS= read -r f; do
 
   common="$(sed -nE 's#^\s*path\s*=\s*"\$\{get_repo_root\(\)\}/(_common/[^"]+\.hcl)"#\1#p' "$f" | head -1)"
   if [[ -z "$common" ]]; then
-    errs+=('include "common" must point at "${get_repo_root()}/_common/<name>.hcl"')
+    errs+=("include \"common\" must point at \"\${get_repo_root()}/_common/<name>.hcl\"")
   elif [[ ! -f "$common" ]]; then
     errs+=("include \"common\" target ${common} does not exist")
   fi

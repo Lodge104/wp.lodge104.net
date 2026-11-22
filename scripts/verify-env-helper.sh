@@ -116,4 +116,6 @@ EOF
   fi
 done
 
+cleanup
+trap - EXIT
 exit "$fail"

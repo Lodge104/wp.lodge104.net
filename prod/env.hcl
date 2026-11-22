@@ -5,6 +5,9 @@ locals {
   # prod.wp.lodge104.net. Drives ACM SANs/validation zone and CDN aliases.
   serves_root_domain = true
 
+  # CloudFront standard access logs -> prod/us-east-1/cloudfront-logs.
+  cloudfront_access_logs = true
+
   # Environment-specific network and workload sizing.
   vpc_cidr = "10.0.0.0/16"
 

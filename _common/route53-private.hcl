@@ -12,7 +12,7 @@
 
 locals {
   ctx     = read_terragrunt_config("${get_repo_root()}/_common/_env.hcl").locals
-  route53 = read_terragrunt_config("${get_repo_root()}/_common/route53.hcl").locals
+  route53 = read_terragrunt_config("${get_repo_root()}/_common/shared/route53.hcl").locals
 }
 
 terraform {

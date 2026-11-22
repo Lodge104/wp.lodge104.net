@@ -2,7 +2,7 @@ locals {
   env = "test"
 
   # CloudFront ALB origin read timeout (seconds); default 60.
-  cloudfront_origin_read_timeout = 120
+  cloudfront_origin_read_timeout = 180
 
   # Environment-specific network and workload sizing.
   vpc_cidr = "10.20.0.0/16"

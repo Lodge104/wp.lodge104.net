@@ -1,6 +1,9 @@
 locals {
   env = "prod"
 
+  # CloudFront ALB origin read timeout (seconds); default 60.
+  cloudfront_origin_read_timeout = 180
+
   # Serves the apex domain (lodge104.net, www., store., cdn.) in addition to
   # prod.wp.lodge104.net. Drives ACM SANs/validation zone and CDN aliases.
   serves_root_domain = true

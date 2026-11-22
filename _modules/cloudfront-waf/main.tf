@@ -292,9 +292,16 @@ resource "aws_wafv2_web_acl" "this" {
         # NOT (path starts with "/wp-json/" AND wordpress_logged_in_ cookie),
         # expanded to NOT(path) OR NOT(cookie). Lets the block/page editors
         # save content over REST (e.g. POST /wp-json/wp/v2/pages/<id>/autosaves,
-        # whose HTML bodies trip the XSS rule) while anonymous REST bodies
+        # or Divi 5's POST /wp-json/divi/v1/sync-to-server, whose ~100KB layout
+        # bodies trip SizeRestrictions_BODY/XSS) while anonymous REST bodies
         # stay blocked. The cookie is only a presence check, so it can be
         # spoofed; WordPress still enforces real auth.
+        #
+        # The check inspects cookie KEYS via the `cookies` component, not the
+        # raw `cookie` header: HTTP/2 and HTTP/3 clients (e.g. Safari over h3)
+        # send each cookie as a separate `cookie` header, and a single_header
+        # match only sees one of them, so the logged-in cookie was missed and
+        # Divi saves were blocked (#91).
         statement {
           or_statement {
             statement {
@@ -322,11 +329,17 @@ resource "aws_wafv2_web_acl" "this" {
                 statement {
                   byte_match_statement {
                     search_string         = "wordpress_logged_in_"
-                    positional_constraint = "CONTAINS"
+                    positional_constraint = "STARTS_WITH"
 
                     field_to_match {
-                      single_header {
-                        name = "cookie"
+                      cookies {
+                        match_pattern {
+                          all {}
+                        }
+                        match_scope = "KEY"
+                        # Inspect what fits (first 8KB / 200 cookies); the
+                        # WordPress auth cookies are set early and land there.
+                        oversize_handling = "CONTINUE"
                       }
                     }
 

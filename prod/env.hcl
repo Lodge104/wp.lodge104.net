@@ -49,22 +49,12 @@ locals {
   # _common/rds.hcl and _common/cdn.hcl -- set rds_* / cdn_* here only to
   # deviate from them.
 
-  # Retained temporarily so the existing managed cache can be destroyed using
-  # its original Terragrunt state key. Remove after the targeted destroy and
-  # state/resource verification are complete.
-  elasticache = {
-    num_cache_nodes       = 1
-    node_type             = "cache.r6g.large"
-    autoscaling_max_nodes = 6
-  }
-
   wordpress = {
     blog_name                = "Lodge104"
     replica_count            = 2
     resources_preset         = "large"
     persistence_size         = "20Gi"
     pdb_create               = true
-    pdb_min_available        = 1
     pod_anti_affinity_preset = "hard"
   }
 }

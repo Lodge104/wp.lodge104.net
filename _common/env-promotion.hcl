@@ -18,7 +18,6 @@ dependency "bastion" {
   config_path = "../bastion"
 
   mock_outputs = {
-    enabled     = true
     instance_id = "i-00000000000000000"
     role_arn    = "arn:aws:iam::123456789012:role/${local.ctx.project}-bastion"
   }

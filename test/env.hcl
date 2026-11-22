@@ -41,7 +41,6 @@ locals {
     # this can only go up. On EFS the size isn't enforced and doesn't affect cost.
     persistence_size         = "20Gi"
     pdb_create               = true
-    pdb_min_available        = 1
     pod_anti_affinity_preset = "hard"
   }
 }

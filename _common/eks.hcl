@@ -82,11 +82,6 @@ inputs = {
   # IRSA (IAM Roles for Service Accounts)
   enable_irsa = true
 
-  # Not a v21 module variable (v21 dropped the defaults merge -- see the
-  # per-group merge below); still passed so the rendered inputs are unchanged.
-  # Remove in the #45 cleanup phase.
-  eks_managed_node_group_defaults = local.eks_managed_node_group_defaults
-
   addons = {
     coredns = {
       most_recent = true

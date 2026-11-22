@@ -35,10 +35,10 @@ locals {
   #   final_snapshot = false (test): timestamped identifier, snapshot skipped.
   #   dev predates the destroy hook and passes no identifier at all
   #   (rds_destroy_snapshot_hook = false in dev/env.hcl).
-  # TODO(#45 cleanup): the timestamped identifier in `inputs` shows a
-  # perpetual in-place diff on aws_rds_cluster.final_snapshot_identifier in
-  # test (pre-existing); passing it only via the destroy extra_arguments
-  # below would remove that drift.
+  # Known drift (follow-up, deliberately out of scope for the no-op #45
+  # refactor): the timestamped identifier in `inputs` shows a perpetual
+  # in-place diff on aws_rds_cluster.final_snapshot_identifier in test.
+  # Passing it only via the destroy extra_arguments below would remove it.
   destroy_snapshot_hook = try(local.env.rds_destroy_snapshot_hook, true)
   snapshot_inputs = merge(
     { skip_final_snapshot = !local.final_snapshot },
@@ -89,13 +89,8 @@ inputs = merge(
     engine         = "aurora-mysql"
     engine_version = "8.0.mysql_aurora.3.10.3"
     engine_mode    = "provisioned" # Serverless v2 uses provisioned mode with db.serverless instances
-    # family / major_engine_version are not variables of rds-aurora 9.x; kept
-    # so the rendered inputs are unchanged. Remove in the #45 cleanup phase.
-    family               = "aurora-mysql8.0"
-    major_engine_version = "8.0"
-
-    port          = 3306
-    database_name = local.shared.database_name
+    port           = 3306
+    database_name  = local.shared.database_name
 
     # Credentials remain managed by AWS Secrets Manager, but rotation is
     # disabled so consumers that sync this secret into Kubernetes do not drift.

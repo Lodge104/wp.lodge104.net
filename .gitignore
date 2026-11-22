@@ -18,6 +18,9 @@ override.tf.json
 .env
 *.pem
 *.key
+# Public, self-signed dummy CA (CN=mock, no private key) used in EKS
+# dependency mock_outputs -- needed to render/plan stacks on a fresh clone.
+!_common/mock-ca.pem
 
 # ── macOS ─────────────────────────────────────────────────────────────────────────
 .DS_Store

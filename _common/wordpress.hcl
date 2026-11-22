@@ -52,8 +52,9 @@ locals {
   # CloudFront's global "origin-facing" managed prefix list -- the same one
   # _common/alb-security-group.hcl restricts ALB ingress to. Resolved here
   # at plan/apply time (not hardcoded) so it can't go stale as AWS updates
-  # the list. Each env's wordpress/terragrunt.hcl feeds these CIDRs (plus
-  # its own VPC CIDR) to Apache's mod_remoteip via the mounted config file,
+  # the list. These CIDRs (plus the env's VPC CIDR) are fed to Apache's
+  # mod_remoteip via the mounted config file (_common/wordpress/
+  # remoteip.yaml.tpl),
   # so Apache can correctly peel both proxy hops -- the ALB and the
   # CloudFront edge -- off the X-Forwarded-For chain and resolve the real
   # visitor IP instead of REMOTE_ADDR/X-Forwarded-For showing one of
@@ -154,12 +155,12 @@ dependency "wordpress_s3_access" {
   mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
+# No outputs needed from efs; this dependency only enforces apply ordering so
+# the efs-sc StorageClass exists before the WordPress PVC is created.
 dependency "efs" {
   config_path = "../efs"
 
-  mock_outputs = {
-    storage_class_name = "efs-sc"
-  }
+  mock_outputs                            = {}
   mock_outputs_allowed_terraform_commands = local.ctx.mock_outputs_allowed_terraform_commands
   mock_outputs_merge_strategy_with_state  = "shallow"
 }
@@ -199,10 +200,8 @@ dependency "ses" {
   config_path = "../ses"
 
   mock_outputs = {
-    smtp_username               = "mock-smtp-username"
-    smtp_credentials_secret_arn = "arn:aws:secretsmanager:${local.ctx.region}:000000000000:secret:mock-ses-xxxxxx"
-    access_key_id               = "AKIAIOSFODNN7EXAMPLE" # cspell:disable-line
-    secret_access_key           = "mock-secret-access-key"
+    access_key_id     = "AKIAIOSFODNN7EXAMPLE" # cspell:disable-line
+    secret_access_key = "mock-secret-access-key"
   }
   mock_outputs_allowed_terraform_commands = local.ctx.mock_outputs_allowed_terraform_commands
   mock_outputs_merge_strategy_with_state  = "shallow"

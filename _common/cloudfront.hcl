@@ -372,16 +372,7 @@ inputs = merge(
     )
     custom_error_response = local.custom_error_response
     web_acl_id            = dependency.waf.outputs.web_acl_arn
-
-    # Building blocks, not module variables -- passed through only for render
-    # parity with the pre-#45 config. Remove in the #45 cleanup phase.
-    error_page_behavior             = local.error_page_behavior
-    error_page_origins              = local.error_page_origins
-    wordpress_no_cache_behavior     = local.wordpress_no_cache_behavior
-    wordpress_static_asset_behavior = local.wordpress_static_asset_behavior
   },
-  # Prod set this explicitly (module default is also true); kept for parity.
-  local.ctx.serves_root_domain ? { create_distribution = true } : {},
   # Standard access logs (status, time-taken, edge result type, cache
   # hit/miss) for debugging edge-side failures such as issue #40; WAF logs
   # carry no response status. Cookies are not logged (they hold session

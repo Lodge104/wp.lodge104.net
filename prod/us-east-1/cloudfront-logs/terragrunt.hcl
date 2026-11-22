@@ -1,20 +1,10 @@
-locals {
-  env_vars     = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  project_vars = read_terragrunt_config(find_in_parent_folders("project.hcl"))
-  env          = local.env_vars.locals.env
-  project      = local.project_vars.locals.project_name
-}
-
+# Thin shim – source, dependencies and inputs live in _common/cloudfront-logs.hcl.
 include "root" {
-  path   = find_in_parent_folders("root.hcl")
-  expose = true
+  path = find_in_parent_folders("root.hcl")
 }
 
-terraform {
-  source = "${get_repo_root()}//_modules/cloudfront-logs"
+include "common" {
+  path = "${get_repo_root()}/_common/cloudfront-logs.hcl"
 }
 
-inputs = {
-  bucket_name    = "${local.project}-${local.env}-cloudfront-logs"
-  retention_days = 30
-}
+inputs = {}

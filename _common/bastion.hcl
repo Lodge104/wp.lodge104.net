@@ -1,4 +1,26 @@
+# -----------------------------------------------------------------------------
+# bastion – single SSM-only Graviton host for operational access (EFS/S3
+# transfers, wp-cli via env-promotion), placed in the "home" env VPC.
+#
+# Full Terragrunt fragment included by global/bastion/terragrunt.hcl.
+# -----------------------------------------------------------------------------
+
 locals {
+  ctx = read_terragrunt_config("${get_repo_root()}/_common/_env.hcl").locals
+  eks = read_terragrunt_config("${get_repo_root()}/_common/shared/eks.hcl").locals
+}
+
+terraform {
+  source = "${get_repo_root()}//_modules/bastion"
+}
+
+inputs = {
+  project_name = local.ctx.project
+  region       = local.ctx.region
+
+  # kubectl on the host matches the clusters' Kubernetes version.
+  kubernetes_version = local.eks.kubernetes_version
+
   environment_names = ["dev", "test", "prod"]
 
   # Prefer running the bastion in prod when it exists, then test, then dev.

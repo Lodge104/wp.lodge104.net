@@ -49,5 +49,5 @@ render_one() {
 }
 export -f render_one
 
-printf '%s\n' "${stacks[@]}" | xargs -P "${PARALLELISM:-8}" -I{} bash -c 'render_one "$@"' _ {} "$out"
+printf '%s\n' "${stacks[@]}" | xargs -P "${PARALLELISM:-8}" -I{} bash -c 'set -euo pipefail; render_one "$@"' _ {} "$out"
 echo "rendered ${#stacks[@]} stack(s) into ${out}"
